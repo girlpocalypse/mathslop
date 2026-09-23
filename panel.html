@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mathslop</title>
+<link rel="stylesheet" href="vendor/mathlive/mathlive-static.css">
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<header><div class="hbar">
+  <h1>mathslop <small id="count">—</small></h1>
+  <div class="tools">
+    <button id="btn-colors" type="button" aria-pressed="false" title="Give each letter its own color, the same on every line">Colors</button>
+    <button id="btn-kbd" type="button" aria-pressed="false" title="Show the on-screen math keyboard">Keyboard</button>
+    <div class="menuwrap">
+      <button id="btn-menu" class="iconbtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu" title="More">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/><rect x="1" y="12" width="14" height="2" rx="1"/></svg>
+        <span class="sr-only">More</span>
+      </button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button id="btn-copy" type="button" role="menuitem">Copy all as LaTeX</button>
+        <button id="btn-import" type="button" role="menuitem">Import LaTeX…</button>
+        <button id="btn-keys" type="button" role="menuitem">Keyboard shortcuts <kbd>Ctrl /</kbd></button>
+        <hr>
+        <button id="btn-clear" type="button" role="menuitem" class="danger">Clear pad <kbd>Esc Esc</kbd></button>
+      </div>
+    </div>
+  </div>
+  <div class="segrow">
+    <span class="seglabel" id="seg-label">Answers</span>
+    <div class="seg" role="group" aria-labelledby="seg-label"><button type="button" data-mode="off" title="No results">Off</button><button type="button" data-mode="arith" title="Only lines with no unknowns: 1+1, ∫₀^π sin x dx, a+1 after a≔3">Arithmetic</button><button type="button" data-mode="full" title="Also simplify expressions with unknowns: 2x+3x = 5x">Algebra</button></div>
+  </div>
+</div></header>
+
+<div class="wrap">
+  <p class="modehint" id="modehint" aria-live="polite"></p>
+  <div class="pad" id="pad" aria-label="Lines"></div>
+  <div class="help">
+    <span><kbd>Ctrl</kbd> <kbd>/</kbd> all shortcuts</span>
+    <span><kbd>Enter</kbd> new line</span>
+    <span><kbd>:</kbd><kbd>=</kbd> assigns a variable</span>
+    <span class="status" id="status"></span>
+  </div>
+</div>
+
+<dialog id="keys" aria-labelledby="keys-title">
+  <h2 id="keys-title">Keyboard shortcuts</h2>
+  <div class="klist">
+    <h3>Lines</h3>
+    <div><span><kbd>Enter</kbd></span><span>New line below</span></div>
+    <div><span><kbd>↑</kbd> <kbd>↓</kbd></span><span>Previous / next line</span></div>
+    <div><span><kbd>←</kbd> <kbd>→</kbd></span><span>At the start or end of a line, jump to the neighbouring line</span></div>
+    <div><span><kbd>Backspace</kbd></span><span>On an empty line, delete it</span></div>
+    <div><span><kbd>Esc</kbd> <kbd>Esc</kbd></span><span>Clear the whole pad (Undo appears for a few seconds)</span></div>
+    <h3>Typing math</h3>
+    <div><span><kbd>/</kbd></span><span>Fraction</span></div>
+    <div><span><kbd>^</kbd> <kbd>_</kbd></span><span>Superscript / subscript</span></div>
+    <div><span><kbd>Tab</kbd></span><span>Next empty slot</span></div>
+    <div><span><kbd>:</kbd> <kbd>=</kbd></span><span>Assign a variable, e.g. a ≔ 3</span></div>
+    <div><span><kbd>\</kbd></span><span>Type a LaTeX command (\alpha, \int…); <kbd>Esc</kbd> exits it</span></div>
+    <div><span><kbd>sqrt</kbd> <kbd>pi</kbd> <kbd>sin</kbd></span><span>Typed names turn into symbols</span></div>
+    <div><span><kbd>Ctrl</kbd> <kbd>Z</kbd></span><span>Undo within the line (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd> redo)</span></div>
+    <h3>Answers (top bar)</h3>
+    <div><span>Off</span><span>No answers, just writing</span></div>
+    <div><span>Arithmetic</span><span>Only lines with no unknowns: 1+1, ∫₀^π sin x dx, a+1 after a ≔ 3</span></div>
+    <div><span>Algebra</span><span>Also simplifies unknowns: 2x+3x = 5x</span></div>
+    <h3>Pad</h3>
+    <div><span><kbd>Ctrl</kbd> <kbd>/</kbd></span><span>This guide</span></div>
+    <div><span>☰ menu</span><span>Copy all as LaTeX, import, clear</span></div>
+  </div>
+  <div class="drow"><button id="keys-close" type="button" autofocus>Close</button></div>
+</dialog>
+
+<dialog id="dlg">
+  <h2>Import LaTeX</h2>
+  <p>One expression per line. Lines separated by <code>\\</code> are split too. This replaces the current pad.</p>
+  <textarea id="imp" spellcheck="false" placeholder="x^2+y^2=r^2&#10;\int_0^1 x\,dx"></textarea>
+  <div class="drow">
+    <button id="imp-cancel" type="button">Cancel</button>
+    <button id="imp-append" type="button">Append</button>
+    <button id="imp-ok" type="button" aria-pressed="true">Replace pad</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- The math engine runs in a sandboxed frame so it may use eval / new Function. See CLAUDE.md. -->
+<iframe id="engine" class="engine" src="sandbox.html" title="Math engine" tabindex="-1" aria-hidden="true"></iframe>
+
+<script src="vendor/mathlive/mathlive.min.js"></script>
+<script src="panel.js"></script>
+</body>
+</html>

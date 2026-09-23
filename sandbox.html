@@ -1,0 +1,13 @@
+<!doctype html>
+<!--
+  Sandboxed page (see "sandbox" in manifest.json). It has its own CSP that
+  allows eval / new Function, but no extension APIs and no storage.
+  Only the math engine lives here; it talks to panel.html via postMessage.
+-->
+<html>
+<head><meta charset="utf-8"><title>Math engine</title></head>
+<body>
+<script src="vendor/compute-engine/compute-engine.min.js"></script>
+<script src="sandbox.js"></script>
+</body>
+</html>
