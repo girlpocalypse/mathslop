@@ -31,6 +31,7 @@ sandbox.html / sandbox.js             the math engine only. Sandboxed page, rela
 vendor/compute-engine/                Compute Engine (UMD build), loaded only by sandbox.html
 vendor/mathlive/                      MathLive + its fonts/static CSS, loaded only by panel.html
 background.js                         makes the toolbar icon open the side panel
+docs/screenshot.png                   used only by README.md; the extension never loads it
 ```
 
 **The rule:** anything that uses `eval`, `new Function`, or a library that does, goes in the sandbox.
@@ -105,6 +106,11 @@ sample lines still produce answers.
 - The storage key `mathslop.v1` in panel.js is internal. Changing it looks like a fresh install to users,
   so bump the `.v1` suffix only for a real data-format change, with a migration from the old key.
 - User-visible name lives in: manifest.json (`name`, `action.default_title`), panel.html (`<title>`, `<h1>`).
+
+## License
+
+Dual licensed `MIT OR WTFPL` (LICENSE, LICENSE-MIT, LICENSE-WTFPL). Files under `vendor/` keep their own
+licenses (both MIT, see each LICENSE.txt) — keep those files when updating vendored libraries.
 
 ## Related
 
