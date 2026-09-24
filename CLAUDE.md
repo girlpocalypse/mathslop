@@ -5,8 +5,6 @@ Manifest V3, no build step, no network access at runtime — every library is ve
 
 ## Open items
 
-- [ ] **Pin the extension ID.** Add a `"key"` (public key) to manifest.json so the ID no longer depends on
-      the folder path. Without it, renaming/moving the folder = new ID = saved pad left behind.
 - [ ] **Block network access in the sandbox.** Add a custom sandbox CSP in manifest.json
       (`"content_security_policy": { "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; default-src 'self'; connect-src 'none'" }`
       or similar) so the engine frame can't make requests. It only ever receives the typed math, but this
@@ -102,7 +100,7 @@ sample lines still produce answers.
 
 - An unpacked extension's ID is derived from its folder path. Renaming or moving the folder makes Chrome
   treat it as a new extension, and `chrome.storage` data (the saved pad) stays with the old ID.
-  Before moving: ☰ → Copy all as LaTeX, then Import afterwards. (Or pin the ID with a `"key"` in manifest.json.)
+  Before moving: ☰ → Copy all as LaTeX, then Import afterwards.
 - The storage key `mathslop.v1` in panel.js is internal. Changing it looks like a fresh install to users,
   so bump the `.v1` suffix only for a real data-format change, with a migration from the old key.
 - User-visible name lives in: manifest.json (`name`, `action.default_title`), panel.html (`<title>`, `<h1>`).
