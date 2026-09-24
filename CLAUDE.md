@@ -96,6 +96,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Answers modes:** Off / Arithmetic / Algebra. Arithmetic answers a line only if it has no unknowns
   (`expr.unknowns` is empty *before* evaluating, so letters assigned earlier with `:=` count as known).
   Algebra also simplifies symbolic lines (2x+3x → 5x). `:=` lines are evaluated in every mode.
+- **Answers default to Off**, and turning them on from Off shows a warning dialog (`#ans-warn`) suggesting
+  learners keep them off; "Keep answers off" is the focused default and Esc cancels. Deliberate: the pad is
+  meant for learning. No warning when switching Arithmetic ↔ Algebra or when a saved mode is restored.
 - Decimal shown with `=` when the value is rational (½ = 0.5, 22/7 = 3.\overline{142857}), `≈` only when
   rounded (√2, π).
 - Relations (`=`, `<`, `:=`, …) never get an answer column.

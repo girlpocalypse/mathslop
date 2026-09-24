@@ -106,7 +106,7 @@
   }
   function paintAll(){ fields().forEach(f => paint(f.shadowRoot)); rows().forEach(r => paint(r.querySelector('.res'))); }
 
-  let mode = saved?.mode ?? 'arith';
+  let mode = saved?.mode ?? 'off';
 
   // ---------- toast ----------
   const toastEl = $('toast'); let toastT;
@@ -253,12 +253,22 @@
   };
   const segBtns = [...document.querySelectorAll('.seg button')];
   function setMode(m){
-    mode = MODE_HINT[m] ? m : 'arith';
+    mode = MODE_HINT[m] ? m : 'off';
     segBtns.forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
     $('modehint').innerHTML = MODE_HINT[mode];
     schedule();
   }
-  segBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  // Turning answers on from Off asks first (see CLAUDE.md, "Answers modes"). Switching between
+  // Arithmetic and Algebra, or restoring a saved mode, doesn't.
+  const ansDlg = $('ans-warn'); let ansPending = null;
+  function requestMode(m){
+    if (mode !== 'off' || m === 'off') return setMode(m);
+    ansPending = m; ansDlg.showModal();
+  }
+  $('ans-cancel').addEventListener('click', () => ansDlg.close());
+  $('ans-ok').addEventListener('click', () => { const m = ansPending; ansDlg.close(); setMode(m); });
+  ansDlg.addEventListener('close', () => { ansPending = null; });
+  segBtns.forEach(b => b.addEventListener('click', () => requestMode(b.dataset.mode)));
 
   // ---------- toolbar ----------
   const bCol = $('btn-colors');

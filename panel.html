@@ -83,6 +83,15 @@
   </div>
 </dialog>
 
+<dialog id="ans-warn" aria-labelledby="ans-warn-title" aria-describedby="ans-warn-text">
+  <h2 id="ans-warn-title">Enable answers?</h2>
+  <p id="ans-warn-text">Are you sure you want to enable answers? This feature is here for your convenience while learning, but if you are still learning Arithmetic or Algebra it is recommended to keep answers disabled to reinforce learning.</p>
+  <div class="drow">
+    <button id="ans-cancel" type="button" autofocus>Keep answers off</button>
+    <button id="ans-ok" type="button">Enable answers</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- The math engine runs in a sandboxed frame so it may use eval / new Function. See CLAUDE.md. -->
