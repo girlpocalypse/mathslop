@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "mathslop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A multiline math scratchpad in the side panel, with live answers.",
   "minimum_chrome_version": "116",
   "permissions": ["sidePanel", "storage", "clipboardWrite"],
