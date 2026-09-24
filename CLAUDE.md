@@ -96,6 +96,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Answers modes:** Off / Arithmetic / Algebra. Arithmetic answers a line only if it has no unknowns
   (`expr.unknowns` is empty *before* evaluating, so letters assigned earlier with `:=` count as known).
   Algebra also simplifies symbolic lines (2x+3x → 5x). `:=` lines are evaluated in every mode.
+- **Answers default to Off**, and turning them on from Off shows a warning dialog (`#ans-warn`) suggesting
+  learners keep them off; "Keep answers off" is the focused default and Esc cancels. Deliberate: the pad is
+  meant for learning. No warning when switching Arithmetic ↔ Algebra or when a saved mode is restored.
 - Decimal shown with `=` when the value is rational (½ = 0.5, 22/7 = 3.\overline{142857}), `≈` only when
   rounded (√2, π).
 - Relations (`=`, `<`, `:=`, …) never get an answer column.
@@ -110,6 +113,18 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - Theme: libadwaita dark only (GNOME). Fonts: Adwaita Sans / Adwaita Mono with fallbacks.
 - Storage: `chrome.storage.local`, key `mathslop.v1` → `{ lines, mode, varColors }`.
   Falls back to localStorage if panel.html is opened outside the extension.
+
+## Versioning
+
+`version` in manifest.json follows semver: **major.minor.patch**.
+
+- **minor** (x.**y**.0) for new features or behaviour changes, e.g. 1.1.0 = answers default to Off.
+- **patch** (x.y.**z**) for bugfixes only.
+- **major** for breaking changes: removing a feature, or a change that leaves users' saved data behind.
+  A storage format change that ships with a migration (see `mathslop.v1` below) is not by itself major.
+- Bump it in the same branch/PR as the change. Unpacked loads don't need it, but keep it accurate anyway.
+- Chrome only accepts 1–4 dot-separated integers (0–65535). No `-beta` / `+build` suffixes; use the
+  display-only `version_name` field if a pre-release label is ever needed.
 
 ## Vendored versions
 
