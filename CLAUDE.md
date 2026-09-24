@@ -7,13 +7,6 @@ Manifest V3, no build step, no network access at runtime — every library is ve
 
 Rough priority order. Items marked *check* need a quick test before committing to any UI.
 
-- [ ] **(Optional) Restrict the panel's network access too.** The sandbox has no network (see Architecture),
-      but `extension_pages` in manifest.json only adds `frame-src 'self'`, so panel.html can still `fetch` or load
-      remote images. It only runs vendored code without `eval`, so this is hardening, not a known hole. If done:
-      add `connect-src 'none'` and `img-src 'self'` (plus `data:` if the MathLive keyboard turns out to need it)
-      to `extension_pages`, keeping `script-src 'self'; object-src 'self'; frame-src 'self'`. Don't use
-      `default-src 'self'`/`'none'` there: MathLive renders answers as HTML with inline `style="…"` attributes,
-      which a `style-src` fallback would block. Re-test answers, the virtual keyboard, fonts, and Copy/Import.
 - [ ] **Engine watchdog.** sandbox.js evaluates synchronously and panel.js has no timeout, so a heavy line
       (`\sum_{n=1}^{10^9} n`, `1000000!`) hangs the engine and every later request queues behind it (stale-id
       filtering doesn't help). If no `result` arrives within ~3 s, replace the iframe, re-ping, and mark the
@@ -61,8 +54,10 @@ docs/screenshot.png                   used only by README.md; the extension neve
 **The rule:** anything that uses `eval`, `new Function`, or a library that does, goes in the sandbox.
 Everything else stays in the panel.
 
-- Extension pages (panel.html) run under MV3's fixed CSP: `script-src 'self'` (manifest.json also adds
-  `frame-src 'self'`, so the engine iframe can't be navigated to an outside URL). No `eval`, no
+- Extension pages (panel.html) run under MV3's fixed CSP: `script-src 'self'`. manifest.json adds
+  `frame-src 'self'` (the engine iframe can't be navigated to an outside URL), `connect-src 'none'` (no
+  fetch/XHR/WebSocket) and `img-src 'self'` (no remote images). No `default-src`/`style-src` on purpose:
+  MathLive renders answers as HTML with inline `style="…"` attributes, which that would block. No `eval`, no
   `new Function`, no inline `<script>`, no inline `onclick=` handlers, no remote scripts. MV3 does not let
   you relax this — `'unsafe-eval'` is rejected in `content_security_policy.extension_pages`.
 - `sandbox.html` is listed under `"sandbox"` in manifest.json. It may use `eval`/`new Function`, but it has
