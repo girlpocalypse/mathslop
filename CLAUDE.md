@@ -5,13 +5,36 @@ Manifest V3, no build step, no network access at runtime — every library is ve
 
 ## Open items
 
+Rough priority order. Items marked *check* need a quick test before committing to any UI.
+
 - [ ] **(Optional) Restrict the panel's network access too.** The sandbox has no network (see Architecture),
       but `extension_pages` in manifest.json only adds `frame-src 'self'`, so panel.html can still `fetch` or load
       remote images. It only runs vendored code without `eval`, so this is hardening, not a known hole. If done:
       add `connect-src 'none'` and `img-src 'self'` (plus `data:` if the MathLive keyboard turns out to need it)
-      to `extension_pages`, keeping `script-src 'self'; object-src 'self'; frame-src 'self'`. Don't use `default-src 'self'`/`'none'` there: MathLive renders answers as HTML with inline
-      `style="…"` attributes, which a `style-src` fallback would block. Re-test answers, the virtual keyboard, fonts,
-      and Copy/Import afterwards.
+      to `extension_pages`, keeping `script-src 'self'; object-src 'self'; frame-src 'self'`. Don't use
+      `default-src 'self'`/`'none'` there: MathLive renders answers as HTML with inline `style="…"` attributes,
+      which a `style-src` fallback would block. Re-test answers, the virtual keyboard, fonts, and Copy/Import.
+- [ ] **Engine watchdog.** sandbox.js evaluates synchronously and panel.js has no timeout, so a heavy line
+      (`\sum_{n=1}^{10^9} n`, `1000000!`) hangs the engine and every later request queues behind it (stale-id
+      filtering doesn't help). If no `result` arrives within ~3 s, replace the iframe, re-ping, and mark the
+      pad/line as "took too long".
+- [ ] **Mark lines that don't parse.** `evalLine` returns `null` for `!e.isValid`, so a typo looks the same as
+      "no answer needed". Return an `invalid` flag and show a dim marker.
+- [ ] **Reuse earlier results.** Click an answer to insert it into the current line, and/or an `ans` symbol
+      for the previous line's value (the engine already walks lines top to bottom on one CE instance).
+- [ ] **Degrees/radians toggle.** `\sin(30)` = −0.988 surprises people. Send it as a setting in the `eval` message.
+- [ ] **Answer format settings.** Decimal places, and fraction-first vs decimal-first.
+- [ ] **Plotting.** New `type: 'plot'` in sandbox.js using `compile()` to sample points, returning number arrays;
+      draw on a `<canvas>` in the panel. The reason CE lives in the sandbox in the first place.
+- [ ] **Solve equations** (`x^2-4=0` → `x=±2`) via CE's `solve`, Algebra mode only. Conflicts with the
+      "relations never get an answer column" decision below; update that section if done.
+- [ ] **Copy with answers / plain-text export.** Copy all currently copies input only. Option to include
+      results, and an AsciiMath/plain-text format for non-LaTeX destinations.
+- [ ] **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
+      migration from `v1` (see "Renaming / moving the folder").
+- [ ] **Real undo** beyond the one-shot clear toast (e.g. deleted lines).
+- [ ] *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): unknown what CE 0.133 supports.
+- [ ] *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
 
 ## Load it
 
