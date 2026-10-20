@@ -61,11 +61,11 @@ Good to know:
 Free and open source (MIT or WTFPL): https://github.com/girlpocalypse/mathslop
 ```
 
-**Category:** Education (under Productivity). Tools would also fit; Education matches who it's for.
+**Category:** Education (in the Productivity group).
 
 **Language:** English
 
-**Graphic assets** (made separately, in this folder)
+**Graphic assets** (in `store/`, except the icon)
 
 | Field | File | Size |
 |---|---|---|
@@ -73,13 +73,10 @@ Free and open source (MIT or WTFPL): https://github.com/girlpocalypse/mathslop
 | Screenshots (1 required, up to 5) | `store/screenshot-1.png`, `store/screenshot-2.png`, … | 1280x800 |
 | Small promo tile (required) | `store/promo-small.png` | 440x280 PNG/JPEG |
 | Marquee promo tile (optional) | `store/promo-marquee.png` | 1400x560 PNG/JPEG |
-| Promo video | none | YouTube link |
 
-Promo video: the dashboard docs page lists a YouTube link next to the required images, but the listing
-requirements policy only names icon, screenshot and description as mandatory. Leave it empty; add one only if
-the dashboard won't save without it.
+**Promo video:** leave empty (optional).
 
-`docs/screenshot.png` (840x1966) can't be used: screenshots must be exactly 1280x800 or 640x400.
+Don't use `docs/screenshot.png` (840x1966); store screenshots must be 1280x800 or 640x400.
 
 **Official URL:** leave empty (needs a site verified in Google Search Console).
 
@@ -113,11 +110,8 @@ Saves the user's pad (the lines of math they typed), the Answers mode and the Co
 
 There are no host permissions, so no host permission justification.
 
-**Remote code:** No, I am not using remote code.
-
-```
-All code is in the package. MathLive (vendor/mathlive/mathlive.min.js, 0.110.0) and Compute Engine (vendor/compute-engine/compute-engine.min.js, @cortex-js/compute-engine 0.133.0) are the unmodified minified builds from npm. No script is loaded from outside the package, nothing is fetched, and no fetched string is evaluated. The extension page CSP sets connect-src 'none'; the sandbox CSP sets default-src 'none'.
-```
+**Remote code:** No, I am not using remote code. (No justification field appears for No; the test
+instructions below cover the vendored libraries.)
 
 **Data usage**
 
@@ -132,7 +126,6 @@ Certifications: tick all three.
 - I do not use or transfer user data to determine creditworthiness or for lending purposes
 
 **Privacy policy URL:** https://github.com/girlpocalypse/mathslop/blob/main/PRIVACY.md
-(push PRIVACY.md to main before submitting, or the link is a 404)
 
 ## Distribution tab
 
@@ -147,9 +140,11 @@ No account or setup needed.
 2. Answers are Off by default. Click "Arithmetic" in the top bar; a dialog asks to confirm. Click "Enable answers".
    Expected: sqrt(a^2+b^2) = 5, the integral = 2, the sum = 5050, 1/3+1/6 = 1/2 = 0.5, e^(i pi)+1 = 0.
 3. Click "Algebra": d/dx x^3 now shows 3x^2.
-4. "Keyboard" shows the on-screen math keyboard. "Colors" colors each letter. The menu (three lines) has Copy all as LaTeX, Import LaTeX, Keyboard shortcuts and Clear pad.
+4. "Keyboard" shows the on-screen math keyboard. "Colors" colors each letter. The ☰ menu has Copy all as LaTeX, Import LaTeX, Keyboard shortcuts and Clear pad.
 
 About the sandbox page: the math engine (Compute Engine) uses new Function for compiling expressions, which the extension page CSP forbids. So it runs in sandbox.html, declared under "sandbox" in the manifest, inside a hidden iframe in the panel. It has no chrome.* APIs, and its CSP is "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-eval'; base-uri 'none'; form-action 'none'", so it can only run its two packaged scripts and can't make network requests. It only receives the pad's LaTeX strings via postMessage and sends back results. This is the pattern from https://developer.chrome.com/docs/extensions/how-to/security/sandboxing-eval
 
-URL strings you may see in the vendored libraries: Compute Engine contains a fetch to oeis.org inside its ce.lookupOEIS() method (an integer-sequence lookup). sandbox.js never calls it, and the sandbox CSP would block it anyway. MathLive mentions esm.run only in console error text. Neither library loads anything remote here.
+Vendored libraries: vendor/mathlive/mathlive.min.js (MathLive 0.110.0) and vendor/compute-engine/compute-engine.min.js (@cortex-js/compute-engine 0.133.0) are the unmodified minified builds from npm. All code is in the package; nothing is fetched and no fetched string is evaluated. The panel's own CSP also sets connect-src 'none'.
+
+URL strings you may see in them: Compute Engine contains a fetch to oeis.org inside its ce.lookupOEIS() method (an integer-sequence lookup). sandbox.js never calls it, and the sandbox CSP would block it anyway. MathLive mentions esm.run only in console error text. Neither library loads anything remote here.
 ```

@@ -19,8 +19,9 @@ data.
   extension, and nothing is loaded from the internet. The extension's Content Security Policy also blocks
   connections (`connect-src 'none'` on the panel, `default-src 'none'` on the math engine frame).
 - It doesn't read web pages, tabs or your browsing history, and has no host permissions.
-- It writes to your clipboard only when you copy something (a copy button, Copy all as LaTeX, or Ctrl+C /
-  Ctrl+X in a line). It reads the clipboard only when you paste into a line.
+- It writes to your clipboard only when you copy something (a line's tex button, clicking an answer, Copy all
+  as LaTeX, a line's right-click menu, or Ctrl+C / Ctrl+X). It reads the clipboard only when you paste.
+
 Nothing is sold or given to anyone, because nothing leaves your device.
 
 ## Changes
