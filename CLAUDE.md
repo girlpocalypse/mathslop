@@ -49,6 +49,7 @@ vendor/compute-engine/                Compute Engine (UMD build), loaded only by
 vendor/mathlive/                      MathLive + its fonts/static CSS, loaded only by panel.html
 background.js                         makes the toolbar icon open the side panel
 docs/screenshot.png                   used only by README.md; the extension never loads it
+store/ PRIVACY.md scripts/            Chrome Web Store listing, assets and packaging; not shipped (see "Publishing")
 ```
 
 **The rule:** anything that uses `eval`, `new Function`, or a library that does, goes in the sandbox.
@@ -109,6 +110,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Shortcuts:** Enter new line · ↑/↓ and ←/→ at edges move between lines · Backspace on empty line deletes
   it · Esc Esc clears the pad (with Undo toast) · Ctrl+/ opens the shortcut guide. `?` must stay typeable
   (it's a normal character in math), which is why the guide is on Ctrl+/.
+- **No read-aloud.** MathLive's Ctrl+Alt+↑/↓ `speak` keybindings are removed in `makeRow`: they send the line
+  to Chrome TTS, which may be an online voice, breaking "nothing leaves the device" in PRIVACY.md. People
+  who need speech use a screen reader.
 - Esc is *not* intercepted while a `\command` is being typed (MathLive's LaTeX mode), or when a dialog/menu is open.
 - Theme: libadwaita dark only (GNOME). Fonts: Adwaita Sans / Adwaita Mono with fallbacks.
 - Storage: `chrome.storage.local`, key `mathslop.v1` → `{ lines, mode, varColors }`.
@@ -125,6 +129,20 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - Bump it in the same branch/PR as the change. Unpacked loads don't need it, but keep it accurate anyway.
 - Chrome only accepts 1–4 dot-separated integers (0–65535). No `-beta` / `+build` suffixes; use the
   display-only `version_name` field if a pre-release label is ever needed.
+
+## Publishing (Chrome Web Store)
+
+- `scripts/package.sh` builds `dist/mathslop-<version>.zip` (gitignored) from an allowlist of runtime files.
+  It fails if a file referenced by manifest.json, the HTML or CSS is missing, or if a shipped file is
+  referenced by nothing, so a new runtime file must be referenced (or added to `TOP_FILES`) before it ships.
+- `store/listing.md` has every dashboard field (description, permission justifications, privacy answers,
+  reviewer test instructions); `store/*.png` are the screenshots and promo tiles. Keep them in step with
+  features, and keep `PRIVACY.md` true: its URL on GitHub `main` is the listing's privacy policy.
+- Permissions are only `sidePanel` and `storage`. `clipboardWrite` was dropped in 1.2.0: extension pages can
+  write the clipboard from a click without it (tested), and it added an install warning. Adding a permission
+  later makes Chrome disable the extension until users re-approve, so don't add one lightly.
+- `icons/icon128.png` has 16 px transparent padding (96 px artwork), as the store asks; 16/32/48 stay full-bleed.
+- Every upload needs a higher `version` than the last one uploaded.
 
 ## Vendored versions
 
