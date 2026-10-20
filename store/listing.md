@@ -55,6 +55,7 @@ Privacy: everything stays on your device. The pad is kept in Chrome's local exte
 
 Good to know:
 - Click the toolbar icon to open the side panel (pin it from the puzzle-piece menu first).
+- Answers work out and simplify expressions, but they don't solve equations: a line like x^2 - 4 = 0 gets no answer.
 - Answers come from the Compute Engine library. Angles are in radians, and some lines just won't get an answer. Check anything that matters.
 - Dark theme only.
 
