@@ -141,6 +141,8 @@
     mf.smartFence = true;
     mf.mathVirtualKeyboardPolicy = 'manual';
     mf.placeholder = '\\text{…}';
+    // No read-aloud (Ctrl+Alt+↑/↓), see CLAUDE.md. keybindings throws until the field is mounted.
+    mf.addEventListener('mount', () => { mf.keybindings = mf.keybindings.filter(k => [].concat(k.command)[0] !== 'speak'); });
     mf.value = latex;
     const res = document.createElement('div'); res.className = 'res'; res.title = 'Click to copy result';
     const acts = document.createElement('div'); acts.className = 'acts';
