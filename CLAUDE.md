@@ -7,6 +7,13 @@ Manifest V3, no build step, no network access at runtime — every library is ve
 
 Rough priority order. Items marked *check* need a quick test before committing to any UI.
 
+- [ ] **Update vendored libraries — after the store approves 1.2.0.** MathLive 0.111.1 fixes XSS bugs
+      (`\enclose`, `\href`/`\htmlData` attribute values) and CSS injection through LaTeX color/border values;
+      0.110.0 is affected. Low risk here (needs crafted LaTeX in your own pad, and the panel CSP blocks inline
+      handlers), but take it. 0.111.0 has breaking accessibility changes to `<math-field>`, so retest keyboard
+      navigation between lines, copy, the shortcuts and the `speak` removal in `makeRow`. Take the current
+      Compute Engine too (0.133 → latest; no security entries) and check the sample answers. Ship as 1.2.1, or
+      1.3.0 if behaviour visibly changes. (An old branch with 0.111.0 / 0.147.0 was deleted unmerged.)
 - [ ] **Engine watchdog.** sandbox.js evaluates synchronously and panel.js has no timeout, so a heavy line
       (`\sum_{n=1}^{10^9} n`, `1000000!`) hangs the engine and every later request queues behind it (stale-id
       filtering doesn't help). If no `result` arrives within ~3 s, replace the iframe, re-ping, and mark the
