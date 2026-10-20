@@ -4,7 +4,7 @@
   "version": "1.1.0",
   "description": "A multiline math scratchpad in the side panel, with live answers.",
   "minimum_chrome_version": "116",
-  "permissions": ["sidePanel", "storage", "clipboardWrite"],
+  "permissions": ["sidePanel", "storage"],
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "panel.html" },
   "action": {
