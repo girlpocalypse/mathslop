@@ -133,15 +133,22 @@ Free, Public, all regions.
 
 ## Test instructions tab
 
+Max 500 characters (this is 457). Re-count after any edit.
+
 ```
-No account or setup needed.
+No account needed.
+1. Click the mathslop toolbar icon (pin it from the puzzle menu). The side panel opens with sample lines.
+2. Click Arithmetic, then Enable answers. Expect 5, 2, 5050, 1/2 = 0.5 and 0.
+3. Click Algebra: d/dx x^3 shows 3x^2.
 
-1. Click the mathslop toolbar icon (pin it from the puzzle-piece menu). The side panel opens with sample lines.
-2. Answers are Off by default. Click "Arithmetic" in the top bar; a dialog asks to confirm. Click "Enable answers".
-   Expected: sqrt(a^2+b^2) = 5, the integral = 2, the sum = 5050, 1/3+1/6 = 1/2 = 0.5, e^(i pi)+1 = 0.
-3. Click "Algebra": d/dx x^3 now shows 3x^2.
-4. "Keyboard" shows the on-screen math keyboard. "Colors" colors each letter. The ☰ menu has Copy all as LaTeX, Import LaTeX, Keyboard shortcuts and Clear pad.
+The engine runs in sandbox.html (manifest "sandbox") because Compute Engine uses new Function. It has no chrome.* APIs and its CSP blocks all network. Both libraries are unmodified npm builds; nothing remote loads.
+```
 
+## If review asks about the sandbox or remote code
+
+Longer explanation to paste into a reply or appeal (doesn't fit in the test instructions).
+
+```
 About the sandbox page: the math engine (Compute Engine) uses new Function for compiling expressions, which the extension page CSP forbids. So it runs in sandbox.html, declared under "sandbox" in the manifest, inside a hidden iframe in the panel. It has no chrome.* APIs, and its CSP is "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-eval'; base-uri 'none'; form-action 'none'", so it can only run its two packaged scripts and can't make network requests. It only receives the pad's LaTeX strings via postMessage and sends back results. This is the pattern from https://developer.chrome.com/docs/extensions/how-to/security/sandboxing-eval
 
 Vendored libraries: vendor/mathlive/mathlive.min.js (MathLive 0.110.0) and vendor/compute-engine/compute-engine.min.js (@cortex-js/compute-engine 0.133.0) are the unmodified minified builds from npm. All code is in the package; nothing is fetched and no fetched string is evaluated. The panel's own CSP also sets connect-src 'none'.
