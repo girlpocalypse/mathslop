@@ -133,14 +133,17 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 ## Publishing (Chrome Web Store)
 
 - `scripts/package.sh` builds `dist/mathslop-<version>.zip` (gitignored) from an allowlist of runtime files.
-  It fails if a file referenced by manifest.json, the HTML or CSS is missing, or if a shipped file is
-  referenced by nothing, so a new runtime file must be referenced (or added to `TOP_FILES`) before it ships.
+  It fails if a file referenced by manifest.json, the HTML or CSS is missing, or if a shipped file other than a
+  license is referenced by none of them. A new top-level runtime file must be added to `TOP_FILES` *and* be
+  referenced from manifest.json, an HTML page or a CSS file (references from JS aren't checked); files under
+  `icons/` and `vendor/` are picked up automatically.
 - `store/listing.md` has every dashboard field (description, permission justifications, privacy answers,
   reviewer test instructions); `store/*.png` are the screenshots and promo tiles. Keep them in step with
   features, and keep `PRIVACY.md` true: its URL on GitHub `main` is the listing's privacy policy.
 - Permissions are only `sidePanel` and `storage`. `clipboardWrite` was dropped in 1.2.0: extension pages can
   write the clipboard from a click without it (tested), and it added an install warning. Adding a permission
-  later makes Chrome disable the extension until users re-approve, so don't add one lightly.
+  that shows an install warning makes Chrome disable the extension until users re-approve, so don't add one
+  lightly.
 - `icons/icon128.png` has 16 px transparent padding (96 px artwork), as the store asks; 16/32/48 stay full-bleed.
 - Every upload needs a higher `version` than the last one uploaded.
 
