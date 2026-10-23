@@ -173,7 +173,9 @@
 
     mf.addEventListener('input', () => { hist.typed(row); schedule(); });
     watch(mf);
+    let tabbing = false;   // move-out from Tab: let focus go on in page order (answer, tex, ×, next line)
     mf.addEventListener('keydown', e => {
+      tabbing = e.key === 'Tab';
       if (e.key === 'Enter' && !e.shiftKey && !e.altKey && mf.mode !== 'latex') {
         e.preventDefault(); e.stopPropagation();
         hist.change(() => focusIn(insertAfter(row)));
@@ -185,6 +187,7 @@
       }
     }, { capture: true });
     mf.addEventListener('move-out', e => {
+      if (tabbing) return;
       const d = e.detail.direction;
       const tgt = (d === 'upward' || d === 'backward') ? row.previousElementSibling : row.nextElementSibling;
       if (tgt && tgt.classList.contains('row')) {

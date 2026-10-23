@@ -39,6 +39,7 @@ vendor/mathlive/                      MathLive + its fonts/static CSS, loaded on
 background.js                         makes the toolbar icon open the side panel
 docs/screenshot.png                   used only by README.md; the extension never loads it
 store/ PRIVACY.md scripts/            Chrome Web Store listing, assets and packaging; not shipped (see "Publishing")
+CHANGELOG.md                          what changed in each version; not shipped
 ```
 
 **The rule:** anything that uses `eval`, `new Function`, or a library that does, goes in the sandbox.
@@ -148,7 +149,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   Implemented by a MutationObserver on each math-field's (open) shadow root, recoloring `.ML__mathit`.
 - **Shortcuts:** Enter new line · ↑/↓ and ←/→ at edges move between lines · Backspace on empty line deletes
   it · Esc Esc clears the pad (with Undo toast) · Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo and redo across the
-  pad · Ctrl+/ opens the shortcut guide. `?` must stay typeable (it's a normal character in math), which is
+  pad · Ctrl+/ opens the shortcut guide. Tab is not intercepted: at the end of a line it goes on in page order
+  (the line's answer, tex, ×, then the next line), so answers are reachable from the keyboard. `?` must stay typeable (it's a normal character in math), which is
   why the guide is on Ctrl+/.
 - **No read-aloud.** MathLive's Ctrl+Alt+↑/↓ `speak` keybindings are removed in `makeRow`: they send the line
   to Chrome TTS, which may be an online voice, breaking "nothing leaves the device" in PRIVACY.md. People
@@ -179,8 +181,14 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   referenced from manifest.json, an HTML page or a CSS file (references from JS aren't checked); files under
   `icons/` and `vendor/` are picked up automatically.
 - `store/listing.md` has every dashboard field (description, permission justifications, privacy answers,
-  reviewer test instructions); `store/*.png` are the screenshots and promo tiles. Keep them in step with
-  features, and keep `PRIVACY.md` true: its URL on GitHub `main` is the listing's privacy policy.
+  reviewer test instructions) and a "For each release" checklist; `store/*.png` are the screenshots and promo
+  tiles. Keep them in step with features, and keep `PRIVACY.md` true: its URL on GitHub `main` is the
+  listing's privacy policy.
+- Every release gets a CHANGELOG.md entry. The dashboard has no release-notes field, so the latest entry is
+  also summarized in the "New in …" block at the top of the store description.
+- The screenshots and the marquee tile are a marketing half on the left plus a real capture of the panel
+  (400 px wide, at x = 880 in the 1280×800 screenshots and x = 1000 in the 1400×560 marquee). To refresh one
+  after a UI change, capture the panel at that size and paste it over the right part, keeping the left part.
 - Permissions are only `sidePanel` and `storage`. `clipboardWrite` was dropped in 1.2.0: extension pages can
   write the clipboard from a click without it (tested), and it added an install warning. Adding a permission
   that shows an install warning makes Chrome disable the extension until users re-approve, so don't add one
