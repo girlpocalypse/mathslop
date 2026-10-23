@@ -17,6 +17,14 @@ Rough priority order.
       a variable; single-letter units (m, s, g, h) can't be told apart from variables while typing; CE's `\to`
       doesn't convert (`\operatorname{UnitConvert}` does); exact unit answers come out as siunitx `\qty[…]`,
       which MathLive can't render; and unit names count as unknowns, so Arithmetic skips unit lines.
+4. **Hostile-input and fuzz testing.** Paste and import LaTeX built to exploit MathLive's renderer (`\href`,
+      `\htmlData`, `\enclose`, `\class`, colors and borders, deep nesting, huge input) and check that nothing
+      runs, no link or restyling escapes the line, and the panel doesn't hang. The CSP blocks inline scripts
+      and all network, so the realistic risk is cosmetic or a self-inflicted hang. Also fuzz the engine
+      (generated and mutated lines through sandbox.js in Node: no escaped exceptions, no stuck job, "=" decimals
+      really exact) and the panel (random keys, clicks, pastes and imports: no console errors, undo/redo round
+      trips, settings survive a restart). Check the `chrome.storage.local` quota too: a huge import's failed
+      save is swallowed silently in `store.save`.
 
 ## Load it
 
