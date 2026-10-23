@@ -152,7 +152,8 @@
   // The line an answer goes into: the one last clicked into, typed in or moved to. Tabbing through a line on
   // the way to an answer doesn't count, and the caret it had before the Tab is put back (caretBeforeTab).
   let lastField = null, tabNav = false;
-  window.addEventListener('keydown', e => { tabNav = e.key === 'Tab'; }, true);
+  const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock']);   // Shift+Tab is still Tab
+  window.addEventListener('keydown', e => { if (!MODIFIERS.has(e.key)) tabNav = e.key === 'Tab'; }, true);
   window.addEventListener('pointerdown', e => {
     tabNav = false;
     // A click inside the line that already has the focus fires no focusin.
@@ -166,6 +167,8 @@
   // MathLive's own menu (right-click, or the ☰ in a line) lives in the line's shadow root and has its own
   // keys. Rebuilding the pad while it's open breaks it for the session, so the pad's shortcuts wait.
   const lineMenuOpen = mf => (mf ? [mf] : fields()).some(f => f.shadowRoot?.querySelector('.ui-menu-container'));
+  // The same for buttons that remove or rebuild lines, reached with the keyboard while a menu is open.
+  const menuBlocks = () => { if (!lineMenuOpen()) return false; toast('Close the menu in the line first'); return true; };
   // Enter and Backspace on lines, also for the on-screen keyboard's ↵ and ⌫ (see "global shortcuts").
   // A new line takes a moment to get the focus; Enter or Backspace pressed before it does (a held Enter)
   // goes to the new line, not the one that still has the focus (lineAt).
@@ -208,13 +211,15 @@
 
     mf.addEventListener('input', () => { mf.caretBeforeTab = null; hist.typed(row); schedule(); });
     // The on-screen keyboard's keys and arrows fire no keydown: any caret move that isn't Tab's own counts.
-    mf.addEventListener('selection-change', () => { if (!tabNav) mf.caretBeforeTab = null; });
+    mf.addEventListener('selection-change', () => {
+      if (tabNav || document.activeElement !== mf) return;
+      mf.caretBeforeTab = null; lastField = mf;
+    });
     watch(mf);
-    let tabbing = false;   // move-out from Tab: let focus go on in page order (answer, tex, ×, next line)
     mf.addEventListener('keydown', e => {
       if (lineMenuOpen(mf)) return;
-      tabbing = e.key === 'Tab';
-      if (tabbing) mf.caretBeforeTab ??= mf.selection; else mf.caretBeforeTab = null;
+      if (e.key === 'Tab') mf.caretBeforeTab ??= mf.selection;
+      else if (!MODIFIERS.has(e.key)) { mf.caretBeforeTab = null; lastField = mf; }   // arrows in it count too
       const at = lineAt(row), atMf = at.querySelector('math-field');
       if (e.key === 'Enter' && !e.shiftKey && !e.altKey && atMf.mode !== 'latex') {
         e.preventDefault(); e.stopPropagation();
@@ -225,7 +230,7 @@
       }
     }, { capture: true });
     mf.addEventListener('move-out', e => {
-      if (tabbing) return;
+      if (tabNav) return;   // move-out from Tab: let focus go on in page order (answer, tex, ×, next line)
       const d = e.detail.direction;
       const tgt = (d === 'upward' || d === 'backward') ? row.previousElementSibling : row.nextElementSibling;
       if (tgt && tgt.classList.contains('row')) {
@@ -236,7 +241,7 @@
     acts.addEventListener('click', e => {
       const a = e.target.closest('button')?.dataset.a;
       if (a === 'copy') copyText(portable(mf.value), 'Line copied as LaTeX');
-      if (a === 'del') {
+      if (a === 'del' && !menuBlocks()) {
         const n = rows().indexOf(row) + 1, had = mf.value !== '';
         const step = hist.change(() => {
           if (rows().length === 1) mf.setValue('', { silenceNotifications: true });
@@ -329,7 +334,8 @@
         else setLines(s.lines);
       } finally { quiet = false; }
       schedule(); dropUndoToast();
-      let i = firstDiff(from.lines, s.lines); if (i < 0) i = s.focus;
+      // Undoing a new line goes back to where Enter was pressed; otherwise to the line that changed.
+      let i = from.lines.length > s.lines.length && s.focus >= 0 ? s.focus : firstDiff(from.lines, s.lines); if (i < 0) i = s.focus;
       const mf = fields()[Math.min(i, s.lines.length - 1)], pos = i === s.focus ? s.pos : Infinity;
       if (mf) { mf.focus(); requestAnimationFrame(() => { mf.position = Math.min(pos, mf.lastOffset); }); }
     }
@@ -340,12 +346,16 @@
         const s = snap(), now = Date.now();
         if (sameLines(s.lines, cur.lines)) { cur = s; return; }
         if (row !== groupRow || now - groupT > 1000) push();
-        cur = s; groupRow = row; groupT = now; future = []; sync();
+        cur = s; groupRow = row; groupT = now; future = [];
+        if (past.length && sameLines(cur.lines, past.at(-1).lines)) { past.pop(); groupRow = null; }   // typed 9, then deleted it
+        sync();
       },
       // Run a change to the pad as one undo step. fn may return the math field it leaves the focus in.
       // Returns the step (for undoToast), or null if nothing changed.
       change(fn){
         if (quiet) { fn(); return null; }
+        const before = snap();                 // where the caret is now (clicks and arrows don't update cur)
+        if (sameLines(before.lines, cur.lines)) cur = before;
         push(); quiet = true;
         let focus;
         try { focus = fn(); } finally { quiet = false; }
@@ -363,7 +373,7 @@
   function undoToast(msg, done, step){
     if (!step) { toast('Nothing changed'); return; }
     // toast() first: it removes the Undo button, which would otherwise take the line's focus with it.
-    toast(msg, { label: 'Undo', run: () => { if (hist.isLatest(step)) { toast(done); hist.undo(); } } });
+    toast(msg, { label: 'Undo', run: () => { if (!menuBlocks() && hist.isLatest(step)) { toast(done); hist.undo(); } } });
   }
 
   // ---------- math engine bridge (sandboxed iframe) ----------
@@ -443,7 +453,7 @@
     const parts = [];
     // group: needs brackets inside another line (a sum, or a negative number)
     if (res.exact) parts.push({ rel: '=', latex: res.exact, group: res.group });
-    if (res.approx) parts.push({ rel: res.approxIsExact ? '=' : '\\approx', latex: res.approx, group: /^-|\d[+-]/.test(res.approx) });
+    if (res.approx) parts.push({ rel: res.approxIsExact ? '=' : '\\approx', latex: res.approx, group: /^-|[\d}][+-]/.test(res.approx) });
     return order === 'decimal' ? parts.reverse() : parts;
   }
   function showResult(row, res){
@@ -574,6 +584,7 @@
   menuAction('btn-clear', () => clearAll());
 
   function clearAll(){
+    if (menuBlocks()) return;
     if (!fields().some(f => f.value)) { toast('Pad is already empty'); return; }
     undoToast('Pad cleared', 'Pad restored', hist.change(() => { setLines(['']); return focusIn(rows()[0]); }));
   }
@@ -590,10 +601,12 @@
   // The dialog closes before the pad is rebuilt: new math fields made under an open modal dialog
   // could end up unable to take typed text.
   $('imp-ok').addEventListener('click', () => {
+    if (menuBlocks()) return;
     const lines = parseImport(imp.value); dlg.close();
     undoToast('Pad replaced', 'Pad restored', hist.change(() => setLines(lines)));
   });
   $('imp-append').addEventListener('click', () => {
+    if (menuBlocks()) return;
     const lines = fields().map(f => f.value).filter(Boolean).concat(parseImport(imp.value)); dlg.close();
     undoToast('Lines appended', 'Pad restored', hist.change(() => setLines(lines)));
   });

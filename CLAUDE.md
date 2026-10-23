@@ -131,7 +131,7 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   numbers longer than 200 characters (10000!) show only the decimal, and an exact form with a rounded float
   inside (94.247…/π for 180/π·arcsin(0.5)) isn't shown. No decimal for NaN (0⁰ = Indeterminate).
 - No answer that just repeats the line: compared after dropping spaces and braces around one character
-  (MathLive writes `\frac13`, CE `\frac{1}{3}`) and reading CE's `\exponentialE` / `\imaginaryI` as e / i. Not against CE's non-canonical parse, which already folds
+  (MathLive writes `\frac13`, CE `\frac{1}{3}`) reading CE's `\exponentialE` / `\imaginaryI` as e / i and dropping `\left` / `\right` (MathLive's `\sin\left(1\right)`). Not against CE's non-canonical parse, which already folds
   `7\div 2` into `\frac{7}{2}` and `3\%` into `0.03`, so their answers would go missing. 2^{0.5}, arcsin(0.5)
   and e^{0.5} give only a decimal in CE 0.161 (0.133 gave √2, π/6, √e): a decimal argument makes a float.
 - Relations (`=`, `<`, `:=`, `⊃`, `∣`, …) and other true/false lines never get an answer column, and
@@ -142,8 +142,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   brackets if it's a sum, complex or negative and the line isn't empty. Clicking a line's own answer (or
   with no line edited yet) starts a new line below with it. Shift+click copies it as LaTeX. Each part is
   also a focusable button (Tab, then Enter / Shift+Enter). Only the answer itself is clickable, not the
-  empty rest of its row. "The line last edited" is the one last clicked into, typed in or moved to with the
-  arrows: lines Tab only passes through don't count, and the caret a line had before Tab moved it is put back.
+  empty rest of its row. "The line last edited" is the one last clicked into, typed in, or whose caret was
+  moved (keys or the on-screen keyboard): lines Tab only passes through don't count, and the caret a line had
+  before Tab moved it is put back, unless the line was edited or its caret moved since.
 - **`ans`** (typed `ans`, an inline shortcut for `\mathrm{ans}`) is the value of the nearest line above that
   has one: any line the mode evaluates, even one with no answer column (`7`). A `:=` line counts with its
   value; a `f(x):=…` definition and true/false lines don't. In Arithmetic, lines with unknowns don't.
@@ -157,7 +158,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Undo** is one history for the whole pad (typing, new/deleted lines, clear, import, inserted answers),
   so Ctrl+Z goes back in order whichever line has the focus. MathLive's per-line undo bindings are removed
   in `makeRow`, and the on-screen keyboard's undo/redo buttons are captured and sent to the same history.
-  Keystrokes in one line less than 1 s apart are one step; undo puts the focus on the line that changed.
+  Keystrokes in one line less than 1 s apart are one step (one that ends where it began is no step); undo
+  puts the focus on the line that changed, or back where Enter was pressed when it removes a new line.
   Deleting a non-empty line with ×, clearing and importing also show an Undo toast, which only ever undoes
   that one step: any later step or undo takes the toast away.
 - **Copy all…** (☰) copies as LaTeX or plain text, with or without answers (none when answers are Off).
@@ -176,7 +178,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   pointerup over the same key, so dragging off cancels). Enter or ↵ pressed before a new line has the focus
   (~60 ms) goes to that new line (`pendingRow`). While
   MathLive's own menu in a line is open, none of the pad's shortcuts run: it handles its own keys, and
-  rebuilding the pad under it breaks it for the rest of the session. panel.css hides and dims the line's ☰
+  rebuilding the pad under it breaks it for the rest of the session. Buttons that remove or rebuild lines
+  (×, Clear pad, Import, the toast's Undo), reachable with Tab while the menu is open, only say "Close the
+  menu in the line first" (`menuBlocks`). panel.css hides and dims the line's ☰
   with `color`, not `opacity`: opacity makes the toggle a stacking context, which traps the full-panel layer
   MathLive puts inside it to close the menu on a click elsewhere. `?` must stay typeable (it's a normal character in math), which is
   why the guide is on Ctrl+/.

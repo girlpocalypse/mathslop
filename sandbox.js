@@ -26,7 +26,9 @@
     'Equivalent', 'Approx', 'Divides', 'Congruent']);
   const norm = x => x.replace(/\s|\\,/g, '');
   // For telling an answer from the line as typed: MathLive writes \frac13, the engine \frac{1}{3}.
-  const key = x => norm(x).replace(/\\exponentialE/g, 'e').replace(/\\imaginaryI/g, 'i').replace(/\{([0-9a-zA-Z])\}/g, '$1');
+  // MathLive also writes \sin\left(1\right) where the engine writes \sin(1).
+  const key = x => norm(x).replace(/\\(left|right)(?![a-zA-Z])/g, '').replace(/\\exponentialE/g, 'e').replace(/\\imaginaryI/g, 'i')
+    .replace(/\{([0-9a-zA-Z])\}/g, '$1');
   // Compute Engine 0.161 writes a float that happens to be whole as 3.0 (1.5·2) and 1.0\cdot10^{30}.
   const tidy = x => x.replace(/(\d)\.0+(?!\d|\\,)/g, '$1').replace(/(^|[+-])1\\imaginaryI/g, '$1\\imaginaryI');   // and 1i for (-1)^{0.5}
   const numOf = v => String(typeof v === 'object' && v ? v.num : v);
@@ -168,7 +170,9 @@
     }
     if (auto) return { latex: aL, exact: false };
     if (x >= 1e15 || (places > 0 && x < 0.5 * 10 ** -places)) return { latex: sciFloat(approxV.re, places), exact: false };
-    return { latex: approxV.toLatex({ digits: { fractional: places } }), exact: false };
+    // The engine's digits rounded exactly, like a rational (its own toLatex writes 1.0 for 1.00).
+    const f = floatDigits(approxV);
+    return { latex: f && f.r ? fixed(f.r, places) : approxV.toLatex({ digits: { fractional: places } }), exact: false };
   }
 
   // A parse error's code ('missing', 'unexpected-command', …), or null when the line parsed but doesn't
@@ -217,8 +221,12 @@
       const d = m.places === 'auto' ? exactL : decimal(ce, val, approxV, m.places).latex;
       if (fd.sig >= 16 || norm(d) !== norm(exactL)) { exact = null; approx = d; approxIsExact = false; }
     }
-    // An exact form with a rounded float inside it (\frac{94.247…}{\pi} for \frac{180}{\pi}\arcsin(0.5)) isn't exact.
-    if (exact && !val.isNumberLiteral && (norm(exactL).match(/\d+\.\d+/g) || []).some(n => n.replace('.', '').replace(/^0+/, '').length >= 16)) exact = null;
+    // An exact form with a rounded float inside it (\frac{94.247…}{\pi} for \frac{180}{\pi}\arcsin(0.5)) isn't
+    // exact: shown with ≈ when there's no decimal (1.581…x for \sqrt{2.5}x in Algebra), else not at all.
+    if (exact && !val.isNumberLiteral && (norm(exactL).match(/\d+\.\d+/g) || []).some(n => n.replace('.', '').replace(/^0+/, '').length >= 16)) {
+      if (!approx) { approx = exact; approxIsExact = false; }
+      exact = null;
+    }
     if (!exact && !approx) return null;
     // group: a sum, a complex number or something negative, which needs brackets in another line.
     const group = ['Add', 'Subtract', 'Negate'].includes(val.operator) || exactL.startsWith('-') ||
