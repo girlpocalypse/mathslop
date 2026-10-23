@@ -31,6 +31,7 @@ store description (store/listing.md).
 - Each line is labeled "Line N" for screen readers, and Tab moves through the page in order (a line, its
   answer, its tex and × buttons, the next line) instead of jumping from line to line; ↑/↓ and ←/→ at the
   edges still do that.
+- A power with a decimal exponent (2^0.5) gives a decimal answer only (≈ 1.414…); write 2^(1/2) for √2.
 - MathLive 0.110.0 → 0.111.1 (fixes XSS and CSS-injection bugs with crafted LaTeX), Compute Engine 0.133.0 →
   0.161.0.
 
@@ -40,9 +41,12 @@ store description (store/listing.md).
   itself, and the panel restarts the engine if it stops responding for 3 s.
 - Very large or very small answers are shown in scientific notation instead of as thousands of digits.
 - An answer no longer just repeats what you typed (typing 1/3 showed = 1/3 = 0.3̅; now just = 0.3̅).
-- A decimal result that uses all of the engine's digits (√2.5, 10²⁰ + 0.5) is marked ≈, not =.
+- A decimal result rounded to the engine's 21 digits (√2.5, 10³⁰ + 0.5) is marked ≈, not =.
 - Esc Esc no longer clears the pad when you only meant to close the menu inside a line.
 - The Keyboard button opens the on-screen keyboard on the line you were in, not the last line.
+- The menu inside a line closes when you click somewhere else. Before, it stayed open, and the pad's
+  shortcuts stopped working until it was closed.
+- Holding Enter adds lines one below the other and leaves the cursor on the last one.
 
 ## 1.2.0 (2026-10-19)
 

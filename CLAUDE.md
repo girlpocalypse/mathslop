@@ -119,11 +119,19 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   meant for learning. No warning when switching Arithmetic ↔ Algebra or when a saved mode is restored.
 - Decimal shown with `=` when the value is rational (½ = 0.5, 22/7 = 3.\overline{142857}), `≈` only when
   rounded (√2, π, 1/97 whose repetend is too long to find). A repetend Compute Engine finds is parsed back
-  and checked against the exact value before it gets `=`. A float result (written as a plain decimal) with
-  16 or more significant digits gets `≈`: it has probably been rounded to the engine's 21 digits. With fixed **Decimals**, rationals are rounded
-  exactly in BigInt, half away from zero (1/8 ≈ 0.13); values that would round to 0 (with Decimals ≥ 1),
-  or are ≥ 10¹⁵, get scientific notation; a decimal result (100·1.07¹⁰) is shown rounded instead of in
-  full. Exact numbers longer than 200 characters (10000!) show only the decimal.
+  and checked against the exact value before it gets `=`. A float result (anything with a decimal point in
+  it: 1.5·2, √2.5, 10³⁰+0.5) gets `=` only if the engine holds fewer than 16 significant digits of it
+  (counted in its MathJSON, `{ num: "1.0000000000000000000000000000005e+30" }`, not in the shown LaTeX);
+  otherwise it has probably been rounded to the engine's 21 digits and gets `≈`. A whole float is shown as
+  3, not CE's 3.0. With fixed **Decimals**, rationals and short floats are rounded exactly in BigInt, half
+  away from zero (1/8 and 0.5·0.25 ≈ 0.13); values that would round to 0 (with Decimals ≥ 1), or are
+  ≥ 10¹⁵, get scientific notation, real and imaginary parts beyond a double (e^{1000}) or below it
+  (e^{-1000}) too; a decimal result (100·1.07¹⁰) is shown rounded instead of in full. Exact numbers longer
+  than 200 characters (10000!) show only the decimal.
+- No answer that just repeats the line: compared after dropping spaces and braces around one character
+  (MathLive writes `\frac13`, CE `\frac{1}{3}`). Not against CE's non-canonical parse, which already folds
+  `7\div 2` into `\frac{7}{2}` and `3\%` into `0.03`, so their answers would go missing. 2^{0.5} gives only
+  ≈ 1.414… in CE 0.161 (0.133 gave √2): a decimal exponent is a float.
 - Relations (`=`, `<`, `:=`, `⊃`, `∣`, …) and other true/false lines never get an answer column, and
   equations are not solved.
 - **Answer options** (shown only when answers are on): Rad/Deg (`ce.angularUnit`, so d/dx sin x in Deg is
@@ -162,9 +170,13 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   it · Esc Esc clears the pad (with Undo toast) · Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo and redo across the
   pad · Ctrl+/ opens the shortcut guide. Tab is not intercepted: at the end of a line it goes on in page order
   (the line's answer, tex, ×, then the next line), so answers are reachable from the keyboard. The on-screen
-  keyboard's ↵ and ⌫ act like Enter and Backspace on lines (taken at pointerdown, before MathLive). While
+  keyboard's ↵ and ⌫ act like Enter and Backspace on lines (taken from MathLive at pointerdown, done at
+  pointerup over the same key, so dragging off cancels). Enter or ↵ pressed before a new line has the focus
+  (~60 ms) goes to that new line (`pendingRow`). While
   MathLive's own menu in a line is open, none of the pad's shortcuts run: it handles its own keys, and
-  rebuilding the pad under it breaks it for the rest of the session. `?` must stay typeable (it's a normal character in math), which is
+  rebuilding the pad under it breaks it for the rest of the session. panel.css hides and dims the line's ☰
+  with `color`, not `opacity`: opacity makes the toggle a stacking context, which traps the full-panel layer
+  MathLive puts inside it to close the menu on a click elsewhere. `?` must stay typeable (it's a normal character in math), which is
   why the guide is on Ctrl+/.
 - **No read-aloud.** MathLive's Ctrl+Alt+↑/↓ `speak` keybindings are removed in `makeRow`: they send the line
   to Chrome TTS, which may be an online voice, breaking "nothing leaves the device" in PRIVACY.md. People
