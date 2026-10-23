@@ -153,7 +153,12 @@
   // the way to an answer doesn't count, and the caret it had before the Tab is put back (caretBeforeTab).
   let lastField = null, tabNav = false;
   window.addEventListener('keydown', e => { tabNav = e.key === 'Tab'; }, true);
-  window.addEventListener('pointerdown', () => { tabNav = false; }, true);
+  window.addEventListener('pointerdown', e => {
+    tabNav = false;
+    // A click inside the line that already has the focus fires no focusin.
+    const mf = e.target.closest?.('.row math-field');
+    if (mf) { lastField = mf; mf.caretBeforeTab = null; }
+  }, true);
   pad.addEventListener('focusin', e => {
     if (e.target.tagName === 'MATH-FIELD' && !tabNav) { lastField = e.target; lastField.caretBeforeTab = null; }
   });
@@ -162,7 +167,19 @@
   // keys. Rebuilding the pad while it's open breaks it for the session, so the pad's shortcuts wait.
   const lineMenuOpen = mf => (mf ? [mf] : fields()).some(f => f.shadowRoot?.querySelector('.ui-menu-container'));
   // Enter and Backspace on lines, also for the on-screen keyboard's ↵ and ⌫ (see "global shortcuts").
-  const newLineAfter = row => hist.change(() => focusIn(insertAfter(row)));
+  // A new line takes a moment to get the focus; Enter or Backspace pressed before it does (a held Enter)
+  // goes to the new line, not the one that still has the focus (lineAt).
+  let pendingRow = null;
+  function newLineAfter(row){
+    hist.change(() => {
+      const n = insertAfter(row); pendingRow = n;
+      setTimeout(() => { if (pendingRow === n) pendingRow = null; }, 500);
+      return focusIn(n);
+    });
+  }
+  const lineAt = row => pendingRow?.isConnected ? pendingRow : row;
+  pad.addEventListener('focusin', e => { if (e.target.closest?.('.row') === pendingRow) pendingRow = null; });
+  window.addEventListener('pointerdown', e => { if (!e.target.closest?.('.ML__keyboard')) pendingRow = null; }, true);
   function removeEmptyRow(row){
     const prev = row.previousElementSibling || row.nextElementSibling;
     const wasPrev = prev === row.previousElementSibling;
@@ -195,12 +212,13 @@
       if (lineMenuOpen(mf)) return;
       tabbing = e.key === 'Tab';
       if (tabbing) mf.caretBeforeTab ??= mf.selection; else mf.caretBeforeTab = null;
-      if (e.key === 'Enter' && !e.shiftKey && !e.altKey && mf.mode !== 'latex') {
+      const at = lineAt(row), atMf = at.querySelector('math-field');
+      if (e.key === 'Enter' && !e.shiftKey && !e.altKey && atMf.mode !== 'latex') {
         e.preventDefault(); e.stopPropagation();
-        newLineAfter(row);
-      } else if (e.key === 'Backspace' && mf.value === '' && rows().length > 1) {
+        newLineAfter(at);
+      } else if (e.key === 'Backspace' && atMf.value === '' && rows().length > 1) {
         e.preventDefault(); e.stopPropagation();
-        removeEmptyRow(row);
+        removeEmptyRow(at);
       }
     }, { capture: true });
     mf.addEventListener('move-out', e => {
@@ -623,19 +641,28 @@
     const c = e.target.closest?.('.ML__keyboard [data-command]')?.getAttribute('data-command');
     if (c !== '"undo"' && c !== '"redo"') return;
     e.preventDefault(); e.stopPropagation();
-    undoRedo(c === '"redo"');
+    if (!lineMenuOpen()) undoRedo(c === '"redo"');
   }, true);
   // The on-screen keyboard's ↵ adds a line below and ⌫ on an empty line deletes it, like Enter and
-  // Backspace. Taken at pointerdown, before MathLive acts on the key; the rest of that press is swallowed.
-  let vkSwallow = false;
+  // Backspace. The press is taken from MathLive at pointerdown and acted on at pointerup over the same
+  // key (dragging off cancels it, as with MathLive's own keys); the rest of that press is swallowed.
+  let vkSwallow = false, vkPress = null;
+  const vkKey = el => el?.closest?.('.ML__keyboard [data-command]');
   window.addEventListener('pointerdown', e => {
-    vkSwallow = false;
-    const c = e.target.closest?.('.ML__keyboard [data-command]')?.getAttribute('data-command') || '';
+    vkSwallow = false; vkPress = null;
+    const key = vkKey(e.target), c = key?.getAttribute('data-command') || '';
     const mf = document.activeElement?.tagName === 'MATH-FIELD' ? document.activeElement : null, row = mf?.closest('.row');
     const enter = c.includes('commit'), back = c.includes('deleteBackward') && mf?.value === '' && rows().length > 1;
     if (!row || !(enter || back) || lineMenuOpen()) return;
-    e.preventDefault(); e.stopPropagation(); vkSwallow = true;
-    if (enter) newLineAfter(row); else removeEmptyRow(row);
+    e.preventDefault(); e.stopPropagation(); vkSwallow = true; vkPress = { key, enter, row };
+  }, true);
+  window.addEventListener('pointercancel', () => { vkPress = null; }, true);
+  window.addEventListener('pointerup', e => {
+    const p = vkPress; vkPress = null;
+    if (!p || vkKey(document.elementFromPoint(e.clientX, e.clientY)) !== p.key || !p.row.isConnected || lineMenuOpen()) return;
+    const at = lineAt(p.row);
+    if (p.enter) newLineAfter(at);
+    else if (at.querySelector('math-field').value === '' && rows().length > 1) removeEmptyRow(at);
   }, true);
   for (const type of ['pointerup', 'click']) window.addEventListener(type, e => {
     if (!vkSwallow || !e.target.closest?.('.ML__keyboard')) return;

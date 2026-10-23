@@ -25,6 +25,11 @@
     'Element', 'NotElement', 'Subset', 'SubsetEqual', 'NotSubset', 'Superset', 'SupersetEqual', 'NotSuperset',
     'Equivalent', 'Approx', 'Divides', 'Congruent']);
   const norm = x => x.replace(/\s|\\,/g, '');
+  // For telling an answer from the line as typed: MathLive writes \frac13, the engine \frac{1}{3}.
+  const key = x => norm(x).replace(/\{([0-9a-zA-Z])\}/g, '$1');
+  // Compute Engine 0.161 writes a float that happens to be whole as 3.0 (1.5·2) and 1.0\cdot10^{30}.
+  const tidy = x => x.replace(/(\d)\.0+(?!\d|\\,)/g, '$1');
+  const numOf = v => String(typeof v === 'object' && v ? v.num : v);
 
   // [p, q] for an exact rational value, as BigInts. MathJSON writes big integers as
   // { num: "28462…008e+2499" } and small ones as plain numbers.
@@ -76,14 +81,40 @@
     const [m, e] = x.toExponential(n).split('e'), [i, f] = m.split('.');
     return grouped(i, f || '') + '\\cdot10^{' + Number(e) + '}';
   }
+  // A number the way MathJSON writes it beyond a double ("1.970…89e+434", "5.07…e-435") in scientific
+  // notation, the mantissa rounded half away from zero to n decimals ('auto': the engine's digits).
+  // null if it isn't in that form.
+  function sciNum(num, n){
+    const m = /^(-?)([1-9])(?:\.(\d*))?e([+-]?\d+)$/.exec(num);
+    if (!m) return null;
+    const d = m[2] + (m[3] || ''), k = n === 'auto' ? Math.min(d.length, PRECISION) : n + 1;
+    let e = +m[4], r = BigInt(d.slice(0, k).padEnd(k, '0'));
+    if ((d[k] || '0') >= '5') r++;
+    let s = String(r);
+    if (s.length > k) { s = s.slice(0, k); e++; }                                // 9.99… rounded up to 10
+    if (n === 'auto') s = s.replace(/(?<=.)0+$/, '');
+    return m[1] + grouped(s[0], s.slice(1)) + '\\cdot10^{' + e + '}';
+  }
+  // Significant digits and decimal places of a float's value, as the engine holds it in MathJSON
+  // ({ num: "1.0000000000000000000000000000005e+30" } for 10^{30}+0.5), or null.
+  function floatDigits(val){
+    const m = /^-?(\d+)(?:\.(\d*))?(?:e([+-]?\d+))?$/.exec(numOf(val.json));
+    if (!m) return null;
+    const frac = (m[2] || '').replace(/0+$/, '');
+    const e = +(m[3] || 0), digits = BigInt(m[1] + frac), shift = frac.length - e;
+    // and its exact value [p, q], for rounding it the same way as a rational (0.125 → 0.13)
+    const r = Math.abs(shift) > 1000 ? null : shift > 0 ? [digits, 10n ** BigInt(shift)] : [digits * 10n ** BigInt(-shift), 1n];
+    if (r && numOf(val.json).startsWith('-')) r[0] = -r[0];
+    return { sig: (m[1] + frac).replace(/^0+/, '').replace(/0+$/, '').length, places: Math.max(0, shift), r };
+  }
   // The decimal answer: { latex, exact } where exact means "=" rather than "≈".
   // places 'auto' keeps Compute Engine's digits; a number rounds to that many places, except values
   // that would round to 0 (with places > 0) or are 10^15 or more, which get scientific notation.
-  function decimal(ce, val, approxV, places){
-    const auto = places === 'auto', r = rationalOf(val), x = Math.abs(approxV.re);
+  function decimal(ce, val, approxV, places, r = rationalOf(val)){
+    const auto = places === 'auto', x = Math.abs(approxV.re), aL = tidy(approxV.latex);
     if (r) {
       const k = exactPlaces(r), a = r[0] < 0n ? -r[0] : r[0];
-      if (k >= 0 && (auto || k <= places)) return { latex: k <= 20 ? fixed(r, k) : approxV.latex, exact: true };
+      if (k >= 0 && (auto || k <= places)) return { latex: k <= 20 ? fixed(r, k) : aL, exact: true };
       if (auto) {
         // 22/7 = 3.\overline{142857}, if the repetend Compute Engine finds in its digits really is p/q
         const rep = approxV.toLatex({ repeatingDecimal: 'vinculum' });
@@ -91,23 +122,30 @@
           let back = null; try { back = rationalOf(ce.parse(rep).evaluate()); } catch {}
           if (sameRational(back, r)) return { latex: rep, exact: true };
         }
-        return { latex: a < r[1] * 10n ** 21n ? approxV.latex : sci(r, PRECISION), exact: false };
+        return { latex: a < r[1] * 10n ** 21n ? aL : sci(r, PRECISION), exact: false };
       }
       const tiny = places > 0 && a !== 0n && 2n * a * 10n ** BigInt(places) < r[1], huge = a >= r[1] * 10n ** 15n;
       return { latex: tiny || huge ? sci(r, places + 1) : fixed(r, places), exact: false };
     }
-    // Beyond a double (e^{1000}): round the mantissa of the engine's own digits ("1.970…e+434").
-    if (!auto && !Number.isFinite(x) && approxV.im === 0) {
-      const big = /^(-?)(\d(?:\.\d+)?)e\+?(\d+)$/.exec(String(approxV.json?.num ?? ''));
-      if (big) {
-        let e = +big[3], f = Number(big[2]).toFixed(places);
-        if (+f >= 10) { e++; f = (Number(big[2]) / 10).toFixed(places); }
-        const [i, fr] = f.split('.');
-        return { latex: big[1] + grouped(i, fr || '') + '\\cdot10^{' + e + '}', exact: false };
+    // A real or imaginary part beyond a double (e^{1000}, i·e^{1000}) or that underflowed to 0
+    // (e^{-1000}): from the engine's own digits in MathJSON, rounded like the rest.
+    const j = approxV.json, parts = Array.isArray(j) && j[0] === 'Complex' ? [j[1], j[2]] : [j, 0];
+    const lost = parts.map((v, i) => { const y = i ? approxV.im : approxV.re; return (!Number.isFinite(y) || y === 0) && sciNum(numOf(v), 0) !== null; });
+    if (lost.some(Boolean)) {
+      const shown = parts.map((v, i) => {
+        if (lost[i]) return !auto && places === 0 && Number.isFinite(i ? approxV.im : approxV.re) ? '0' : sciNum(numOf(v), places);
+        if (v === 0) return '0';
+        const b = ce.box(v);
+        return auto ? tidy(b.latex) : b.toLatex({ digits: { fractional: places } });
+      });
+      if (!shown.includes(null)) {
+        const [re, im] = shown.map(s => norm(s).replace(/^-/, '') === '0' ? null : s);
+        const imL = im === null ? null : (im === '1' ? '' : im === '-1' ? '-' : im) + '\\imaginaryI';
+        return { latex: re && imL ? re + (imL.startsWith('-') ? '' : '+') + imL : re || imL || '0', exact: false };
       }
     }
-    // Otherwise beyond a double, or a real part that underflowed (10^{-400}): the engine's own form.
-    if (auto || !Number.isFinite(x) || (x === 0 && approxV.im === 0 && norm(approxV.latex) !== '0')) return { latex: approxV.latex, exact: false };
+    // Otherwise beyond a double: the engine's own form.
+    if (auto || !Number.isFinite(x) || !Number.isFinite(approxV.im)) return { latex: aL, exact: false };
     if (approxV.im === 0 && (x >= 1e15 || (places > 0 && x < 0.5 * 10 ** -places))) return { latex: sciFloat(approxV.re, places), exact: false };
     return { latex: approxV.toLatex({ digits: { fractional: places } }), exact: false };
   }
@@ -136,10 +174,8 @@
     }
     if (REL.has(e.operator) || bool) return null;   // relations (and other true/false lines) get no answer
 
-    // The line as typed, in the engine's spelling: MathLive writes \frac13, the engine \frac{1}{3}.
-    let typed = src; try { typed = ce.parse(src, { canonical: false }).latex; } catch {}
-    const same = x => norm(x) === norm(src) || norm(x) === norm(typed) || (norm(x) === norm(e.latex) && norm(e.latex) === norm(src));
-    const exactL = val.latex, approxV = val.N();
+    const same = x => key(x) === key(src);
+    const exactL = tidy(val.latex), approxV = val.N();
     let exact = same(exactL) ? null : exactL;
     // Too long to show: a number like 10000!, or a radical over one (\sqrt{2^{2001}}).
     const tooLong = exactL.length > MAX_EXACT_NUMBER && (val.isNumberLiteral || /\d{100}/.test(norm(exactL)));
@@ -148,21 +184,17 @@
     // An exact complex number with whole parts (2i, 1+3i) needs no decimal.
     const gaussian = val.operator === 'Complex' && Number.isInteger(val.re) && Number.isInteger(val.im);
     // No decimal for a value that already is one (5050, 0.3), unless it was too long to show.
-    if (approxV.isNumberLiteral && !gaussian && (tooLong || approxV.latex !== exactL)) {
+    if (approxV.isNumberLiteral && !gaussian && (tooLong || tidy(approxV.latex) !== exactL)) {
       const d = decimal(ce, val, approxV, m.places);
       if (norm(d.latex) !== norm(exactL) && !same(d.latex)) { approx = d.latex; approxIsExact = d.exact; }
     }
-    // A decimal result with 16 or more significant digits has probably been rounded to the engine's
-    // precision (√2.5, 10^{20}+0.5), so it's "≈", not "=".
-    // (A float is written as a plain decimal; 2\sqrt{2} is an exact number literal too, but not a float.)
-    const float = exact && /^-?\d+\.\d+$/.test(norm(exactL)) && !rationalOf(val);
-    if (float && norm(exactL).replace(/^-/, '').replace('.', '').replace(/^0+/, '').length >= 16) {
-      approx = m.places === 'auto' ? exactL : decimal(ce, val, approxV, m.places).latex; approxIsExact = false; exact = null;
-    }
-    // A decimal result (100·1.07^{10}) with more places than Decimals asks for is shown rounded instead.
-    if (float && exact && m.places !== 'auto' && norm(exactL).split('.')[1].length > m.places) {
-      const d = decimal(ce, val, approxV, m.places);
-      if (norm(d.latex) !== norm(exactL)) { exact = null; approx = d.latex; approxIsExact = false; }
+    // A float result (√2.5, 1.5·2, 10^{30}+0.5) is "=" only if the engine has few enough digits of it that
+    // nothing was rounded off: with 16 or more significant digits it has probably been rounded to the
+    // engine's precision, so it's "≈". With Decimals set, one with more places than that is rounded.
+    const fd = exact && val.isNumberLiteral && val.isExact === false && val.im === 0 ? floatDigits(val) : null;
+    if (fd && (fd.sig >= 16 || (m.places !== 'auto' && fd.places > m.places))) {
+      const d = m.places === 'auto' ? exactL : decimal(ce, val, approxV, m.places, fd.sig < 16 && fd.r || rationalOf(val)).latex;
+      if (fd.sig >= 16 || norm(d) !== norm(exactL)) { exact = null; approx = d; approxIsExact = false; }
     }
     if (!exact && !approx) return null;
     // group: a sum, a complex number or something negative, which needs brackets in another line.
