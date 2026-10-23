@@ -20,6 +20,7 @@ store description (store/listing.md).
 - **Undo for the whole pad.** Ctrl+Z steps back through typing, new and deleted lines, clearing and import,
   in order, whichever line has the focus (Ctrl+Shift+Z or Ctrl+Y redoes). The on-screen keyboard's undo
   buttons do the same. Deleting a line with × shows an Undo toast.
+- On the on-screen keyboard, ↵ adds a line and ⌫ on an empty line deletes it, like Enter and Backspace.
 - **Markers** (with answers on): "can't read" on lines with a typo or an empty box, and "took too long" on a
   line that was skipped after 1.5 s.
 
@@ -38,6 +39,10 @@ store description (store/listing.md).
 - A heavy line (a huge sum or factorial) no longer stops every answer below it. The engine stops a slow line
   itself, and the panel restarts the engine if it stops responding for 3 s.
 - Very large or very small answers are shown in scientific notation instead of as thousands of digits.
+- An answer no longer just repeats what you typed (typing 1/3 showed = 1/3 = 0.3̅; now just = 0.3̅).
+- A decimal result that uses all of the engine's digits (√2.5, 10²⁰ + 0.5) is marked ≈, not =.
+- Esc Esc no longer clears the pad when you only meant to close the menu inside a line.
+- The Keyboard button opens the on-screen keyboard on the line you were in, not the last line.
 
 ## 1.2.0 (2026-10-19)
 

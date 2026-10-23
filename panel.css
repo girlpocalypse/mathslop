@@ -135,7 +135,7 @@ select:hover{background:var(--btn-hover)}
 select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 option{background:var(--dialog);color:var(--fg)}
 .res{cursor:default}
-.res:has(.part){cursor:pointer}
+.res .part{cursor:pointer}
 .res .part+.part{margin-left:.6em;opacity:.72}
 .res .part:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 .res .mark{font:400 12px var(--sans);color:var(--dim);border:1px solid var(--border);border-radius:999px;padding:2px 8px;cursor:help;

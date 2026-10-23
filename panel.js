@@ -149,8 +149,25 @@
   // ---------- rows ----------
   const rows = () => [...pad.querySelectorAll('.row')];
   const fields = () => rows().map(r => r.querySelector('math-field'));
-  let lastField = null;   // the line an answer click goes into
-  pad.addEventListener('focusin', e => { if (e.target.tagName === 'MATH-FIELD') lastField = e.target; });
+  // The line an answer goes into: the one last clicked into, typed in or moved to. Tabbing through a line on
+  // the way to an answer doesn't count, and the caret it had before the Tab is put back (caretBeforeTab).
+  let lastField = null, tabNav = false;
+  window.addEventListener('keydown', e => { tabNav = e.key === 'Tab'; }, true);
+  window.addEventListener('pointerdown', () => { tabNav = false; }, true);
+  pad.addEventListener('focusin', e => {
+    if (e.target.tagName === 'MATH-FIELD' && !tabNav) { lastField = e.target; lastField.caretBeforeTab = null; }
+  });
+  pad.addEventListener('input', e => { if (e.target.tagName === 'MATH-FIELD') lastField = e.target; });
+  // MathLive's own menu (right-click, or the ☰ in a line) lives in the line's shadow root and has its own
+  // keys. Rebuilding the pad while it's open breaks it for the session, so the pad's shortcuts wait.
+  const lineMenuOpen = mf => (mf ? [mf] : fields()).some(f => f.shadowRoot?.querySelector('.ui-menu-container'));
+  // Enter and Backspace on lines, also for the on-screen keyboard's ↵ and ⌫ (see "global shortcuts").
+  const newLineAfter = row => hist.change(() => focusIn(insertAfter(row)));
+  function removeEmptyRow(row){
+    const prev = row.previousElementSibling || row.nextElementSibling;
+    const wasPrev = prev === row.previousElementSibling;
+    hist.change(() => { row.remove(); renumber(); schedule(); return focusField(prev.querySelector('math-field'), wasPrev ? 'end' : 'start'); });
+  }
 
   function makeRow(latex = ''){
     const row = document.createElement('div'); row.className = 'row';
@@ -175,15 +192,15 @@
     watch(mf);
     let tabbing = false;   // move-out from Tab: let focus go on in page order (answer, tex, ×, next line)
     mf.addEventListener('keydown', e => {
+      if (lineMenuOpen(mf)) return;
       tabbing = e.key === 'Tab';
+      if (tabbing) mf.caretBeforeTab ??= mf.selection; else mf.caretBeforeTab = null;
       if (e.key === 'Enter' && !e.shiftKey && !e.altKey && mf.mode !== 'latex') {
         e.preventDefault(); e.stopPropagation();
-        hist.change(() => focusIn(insertAfter(row)));
+        newLineAfter(row);
       } else if (e.key === 'Backspace' && mf.value === '' && rows().length > 1) {
         e.preventDefault(); e.stopPropagation();
-        const prev = row.previousElementSibling || row.nextElementSibling;
-        const wasPrev = prev === row.previousElementSibling;
-        hist.change(() => { row.remove(); renumber(); schedule(); return focusField(prev.querySelector('math-field'), wasPrev ? 'end' : 'start'); });
+        removeEmptyRow(row);
       }
     }, { capture: true });
     mf.addEventListener('move-out', e => {
@@ -208,11 +225,12 @@
         if (had) undoToast('Line ' + n + ' deleted', 'Line restored', step);
       }
     });
-    // Click (or Enter on) an answer: into the line last edited. With Shift: copy it.
+    // Click (or Enter on) an answer: into the line last edited. With Shift: copy it. Only the answer
+    // itself counts, not the empty rest of the row.
     const pick = e => {
-      const parts = answerParts(resultOf.get(row));
-      if (!parts.length) return;
-      const p = parts[+(e.target.closest('.part')?.dataset.i ?? 0)] || parts[0];
+      const parts = answerParts(resultOf.get(row)), part = e.target.closest('.part');
+      if (!parts.length || !part) return;
+      const p = parts[+part.dataset.i] || parts[0];
       if (e.shiftKey) copyText(portable(p.latex), 'Answer copied as LaTeX');
       else useAnswer(row, p.latex, p.group);
     };
@@ -253,6 +271,7 @@
     hist.change(() => {
       if (!target) return focusIn(insertAfter(from, latex));
       target.focus();
+      if (target.caretBeforeTab) { target.selection = target.caretBeforeTab; target.caretBeforeTab = null; }
       // A sum or a negative number keeps its brackets inside another expression: 2·(x+1), not 2·x+1.
       const wrap = group && target.value.trim() !== '';
       target.insert(wrap ? '\\left(' + latex + '\\right)' : latex, { insertionMode: 'replaceSelection', selectionMode: 'after', format: 'latex' });
@@ -321,7 +340,8 @@
   // A toast with Undo for one step. It only ever undoes that step: once anything else happens, it's gone.
   function undoToast(msg, done, step){
     if (!step) { toast('Nothing changed'); return; }
-    toast(msg, { label: 'Undo', run: () => { if (hist.isLatest(step)) { hist.undo(); toast(done); } } });
+    // toast() first: it removes the Undo button, which would otherwise take the line's focus with it.
+    toast(msg, { label: 'Undo', run: () => { if (hist.isLatest(step)) { toast(done); hist.undo(); } } });
   }
 
   // ---------- math engine bridge (sandboxed iframe) ----------
@@ -500,7 +520,7 @@
   bKbd.addEventListener('click', () => {
     const vk = window.mathVirtualKeyboard; if (!vk) return;
     const show = !vk.visible;
-    if (show) { (document.activeElement?.tagName === 'MATH-FIELD' ? document.activeElement : fields().at(-1)).focus(); vk.show(); }
+    if (show) { (lastField?.isConnected ? lastField : fields().at(-1)).focus(); vk.show(); }
     else vk.hide();
     bKbd.setAttribute('aria-pressed', show);
   });
@@ -605,9 +625,27 @@
     e.preventDefault(); e.stopPropagation();
     undoRedo(c === '"redo"');
   }, true);
+  // The on-screen keyboard's ↵ adds a line below and ⌫ on an empty line deletes it, like Enter and
+  // Backspace. Taken at pointerdown, before MathLive acts on the key; the rest of that press is swallowed.
+  let vkSwallow = false;
+  window.addEventListener('pointerdown', e => {
+    vkSwallow = false;
+    const c = e.target.closest?.('.ML__keyboard [data-command]')?.getAttribute('data-command') || '';
+    const mf = document.activeElement?.tagName === 'MATH-FIELD' ? document.activeElement : null, row = mf?.closest('.row');
+    const enter = c.includes('commit'), back = c.includes('deleteBackward') && mf?.value === '' && rows().length > 1;
+    if (!row || !(enter || back) || lineMenuOpen()) return;
+    e.preventDefault(); e.stopPropagation(); vkSwallow = true;
+    if (enter) newLineAfter(row); else removeEmptyRow(row);
+  }, true);
+  for (const type of ['pointerup', 'click']) window.addEventListener(type, e => {
+    if (!vkSwallow || !e.target.closest?.('.ML__keyboard')) return;
+    e.preventDefault(); e.stopPropagation();
+    if (type === 'click') vkSwallow = false;
+  }, true);
   let escArmed = 0;
   window.addEventListener('keydown', e => {
     if (document.querySelector('dialog[open]')) return;        // dialogs keep their own Esc
+    if (lineMenuOpen()) return;                                // so does MathLive's menu in a line
     if (!menu.hidden) return;                                  // menu handles its own keys
     const inText = e.target.closest?.('textarea, input, select');
     const mf = document.activeElement?.tagName === 'MATH-FIELD' ? document.activeElement : null;

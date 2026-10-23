@@ -96,8 +96,18 @@
       const tiny = places > 0 && a !== 0n && 2n * a * 10n ** BigInt(places) < r[1], huge = a >= r[1] * 10n ** 15n;
       return { latex: tiny || huge ? sci(r, places + 1) : fixed(r, places), exact: false };
     }
-    // Beyond a double (e^{1000}) or below one (10^{-400}): Compute Engine's own scientific form.
-    if (auto || !Number.isFinite(x) || (x === 0 && norm(approxV.latex) !== '0')) return { latex: approxV.latex, exact: false };
+    // Beyond a double (e^{1000}): round the mantissa of the engine's own digits ("1.970…e+434").
+    if (!auto && !Number.isFinite(x) && approxV.im === 0) {
+      const big = /^(-?)(\d(?:\.\d+)?)e\+?(\d+)$/.exec(String(approxV.json?.num ?? ''));
+      if (big) {
+        let e = +big[3], f = Number(big[2]).toFixed(places);
+        if (+f >= 10) { e++; f = (Number(big[2]) / 10).toFixed(places); }
+        const [i, fr] = f.split('.');
+        return { latex: big[1] + grouped(i, fr || '') + '\\cdot10^{' + e + '}', exact: false };
+      }
+    }
+    // Otherwise beyond a double, or a real part that underflowed (10^{-400}): the engine's own form.
+    if (auto || !Number.isFinite(x) || (x === 0 && approxV.im === 0 && norm(approxV.latex) !== '0')) return { latex: approxV.latex, exact: false };
     if (approxV.im === 0 && (x >= 1e15 || (places > 0 && x < 0.5 * 10 ** -places))) return { latex: sciFloat(approxV.re, places), exact: false };
     return { latex: approxV.toLatex({ digits: { fractional: places } }), exact: false };
   }
@@ -126,20 +136,31 @@
     }
     if (REL.has(e.operator) || bool) return null;   // relations (and other true/false lines) get no answer
 
-    const same = x => norm(x) === norm(src) || (norm(x) === norm(e.latex) && norm(e.latex) === norm(src));
+    // The line as typed, in the engine's spelling: MathLive writes \frac13, the engine \frac{1}{3}.
+    let typed = src; try { typed = ce.parse(src, { canonical: false }).latex; } catch {}
+    const same = x => norm(x) === norm(src) || norm(x) === norm(typed) || (norm(x) === norm(e.latex) && norm(e.latex) === norm(src));
     const exactL = val.latex, approxV = val.N();
     let exact = same(exactL) ? null : exactL;
-    const tooLong = val.isNumberLiteral && exactL.length > MAX_EXACT_NUMBER;
+    // Too long to show: a number like 10000!, or a radical over one (\sqrt{2^{2001}}).
+    const tooLong = exactL.length > MAX_EXACT_NUMBER && (val.isNumberLiteral || /\d{100}/.test(norm(exactL)));
     if (tooLong) exact = null;
     let approx = null, approxIsExact = false;
+    // An exact complex number with whole parts (2i, 1+3i) needs no decimal.
+    const gaussian = val.operator === 'Complex' && Number.isInteger(val.re) && Number.isInteger(val.im);
     // No decimal for a value that already is one (5050, 0.3), unless it was too long to show.
-    if (approxV.isNumberLiteral && (tooLong || approxV.latex !== exactL)) {
+    if (approxV.isNumberLiteral && !gaussian && (tooLong || approxV.latex !== exactL)) {
       const d = decimal(ce, val, approxV, m.places);
       if (norm(d.latex) !== norm(exactL) && !same(d.latex)) { approx = d.latex; approxIsExact = d.exact; }
     }
+    // A decimal result with 16 or more significant digits has probably been rounded to the engine's
+    // precision (√2.5, 10^{20}+0.5), so it's "≈", not "=".
+    // (A float is written as a plain decimal; 2\sqrt{2} is an exact number literal too, but not a float.)
+    const float = exact && /^-?\d+\.\d+$/.test(norm(exactL)) && !rationalOf(val);
+    if (float && norm(exactL).replace(/^-/, '').replace('.', '').replace(/^0+/, '').length >= 16) {
+      approx = m.places === 'auto' ? exactL : decimal(ce, val, approxV, m.places).latex; approxIsExact = false; exact = null;
+    }
     // A decimal result (100·1.07^{10}) with more places than Decimals asks for is shown rounded instead.
-    const dec = norm(exactL).match(/^-?\d+(?:\.(\d+))?$/);
-    if (exact && m.places !== 'auto' && val.isNumberLiteral && val.im === 0 && !rationalOf(val) && !(dec && (dec[1] || '').length <= m.places)) {
+    if (float && exact && m.places !== 'auto' && norm(exactL).split('.')[1].length > m.places) {
       const d = decimal(ce, val, approxV, m.places);
       if (norm(d.latex) !== norm(exactL)) { exact = null; approx = d.latex; approxIsExact = false; }
     }

@@ -119,7 +119,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   meant for learning. No warning when switching Arithmetic ↔ Algebra or when a saved mode is restored.
 - Decimal shown with `=` when the value is rational (½ = 0.5, 22/7 = 3.\overline{142857}), `≈` only when
   rounded (√2, π, 1/97 whose repetend is too long to find). A repetend Compute Engine finds is parsed back
-  and checked against the exact value before it gets `=`. With fixed **Decimals**, rationals are rounded
+  and checked against the exact value before it gets `=`. A float result (written as a plain decimal) with
+  16 or more significant digits gets `≈`: it has probably been rounded to the engine's 21 digits. With fixed **Decimals**, rationals are rounded
   exactly in BigInt, half away from zero (1/8 ≈ 0.13); values that would round to 0 (with Decimals ≥ 1),
   or are ≥ 10¹⁵, get scientific notation; a decimal result (100·1.07¹⁰) is shown rounded instead of in
   full. Exact numbers longer than 200 characters (10000!) show only the decimal.
@@ -130,7 +131,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Click an answer** to insert that part (exact or decimal) at the caret of the line last edited, in
   brackets if it's a sum, complex or negative and the line isn't empty. Clicking a line's own answer (or
   with no line edited yet) starts a new line below with it. Shift+click copies it as LaTeX. Each part is
-  also a focusable button (Tab, then Enter / Shift+Enter).
+  also a focusable button (Tab, then Enter / Shift+Enter). Only the answer itself is clickable, not the
+  empty rest of its row. "The line last edited" is the one last clicked into, typed in or moved to with the
+  arrows: lines Tab only passes through don't count, and the caret a line had before Tab moved it is put back.
 - **`ans`** (typed `ans`, an inline shortcut for `\mathrm{ans}`) is the value of the nearest line above that
   has one: any line the mode evaluates, even one with no answer column (`7`). A `:=` line counts with its
   value; a `f(x):=…` definition and true/false lines don't. In Arithmetic, lines with unknowns don't.
@@ -158,7 +161,10 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Shortcuts:** Enter new line · ↑/↓ and ←/→ at edges move between lines · Backspace on empty line deletes
   it · Esc Esc clears the pad (with Undo toast) · Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo and redo across the
   pad · Ctrl+/ opens the shortcut guide. Tab is not intercepted: at the end of a line it goes on in page order
-  (the line's answer, tex, ×, then the next line), so answers are reachable from the keyboard. `?` must stay typeable (it's a normal character in math), which is
+  (the line's answer, tex, ×, then the next line), so answers are reachable from the keyboard. The on-screen
+  keyboard's ↵ and ⌫ act like Enter and Backspace on lines (taken at pointerdown, before MathLive). While
+  MathLive's own menu in a line is open, none of the pad's shortcuts run: it handles its own keys, and
+  rebuilding the pad under it breaks it for the rest of the session. `?` must stay typeable (it's a normal character in math), which is
   why the guide is on Ctrl+/.
 - **No read-aloud.** MathLive's Ctrl+Alt+↑/↓ `speak` keybindings are removed in `makeRow`: they send the line
   to Chrome TTS, which may be an online voice, breaking "nothing leaves the device" in PRIVACY.md. People
