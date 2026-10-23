@@ -183,7 +183,8 @@
   }
 
   function evalLine(ce, src, m){
-    src = (src || '').trim();
+    // MathLive's dx shortcut writes \differentialD, which the engine reads in \int but not in \frac{d}{dx}.
+    src = (src || '').trim().replace(/\\differentialD(?![a-zA-Z])/g, '\\mathrm{d}');
     if (!src) return null;
     const e = ce.parse(src);
     if (!e.isValid) { const code = parseError(e); return code ? { invalid: code } : null; }
@@ -201,6 +202,7 @@
 
     const same = x => key(x) === key(src);
     const exactL = tidy(val.latex), approxV = val.N();
+    if (exactL.includes('\\square')) return { invalid: 'missing' };   // log(100) typed: \log_{100}(\square)
     let exact = same(exactL) ? null : exactL;
     // Too long to show: a number like 10000!, or a radical over one (\sqrt{2^{2001}}).
     const tooLong = exactL.length > MAX_EXACT_NUMBER && (val.isNumberLiteral || /\d{100}/.test(norm(exactL)));

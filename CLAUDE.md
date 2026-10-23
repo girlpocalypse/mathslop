@@ -139,7 +139,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Answer options** (shown only when answers are on): Rad/Deg (`ce.angularUnit`, so d/dx sin x in Deg is
   π cos x / 180), Decimals (auto, 0–10), and exact first / decimal first. The second form is dimmed.
 - **Click an answer** to insert that part (exact or decimal) at the caret of the line last edited, in
-  brackets if it's a sum, complex or negative and the line isn't empty. Clicking a line's own answer (or
+  brackets if it's a sum, complex or negative and the line isn't empty (the engine's `group` for the exact
+  part; for the decimal part, `isSum()`: a + or − outside braces, so x+1.414… and 0.3̅+0.3̅i count). Clicking a line's own answer (or
   with no line edited yet) starts a new line below with it. Shift+click copies it as LaTeX. Each part is
   also a focusable button (Tab, then Enter / Shift+Enter). Only the answer itself is clickable, not the
   empty rest of its row. "The line last edited" is the one last clicked into, typed in, or whose caret was
@@ -154,12 +155,17 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Markers:** "can't read" for lines CE can't parse (tooltip from the parse error code; a line that parses
   but makes no sense, like `\sin(\infty)`, gets nothing), "took too long" for slow lines (CE's `timeout`
   cancellations only, not e.g. `recursion-depth-exceeded`). Only when answers are on. They fade in after
-  0.8 s so a half-typed line doesn't flash.
+  0.8 s so a half-typed line doesn't flash. A result with an empty box in it (typed log(100) becomes
+  `\log_{100}(\square)`) is "can't read" too. MathLive's dx shortcut writes `\differentialD`, which CE
+  rejects in d/dx, so sandbox.js reads it as `\mathrm{d}`.
 - **Undo** is one history for the whole pad (typing, new/deleted lines, clear, import, inserted answers),
   so Ctrl+Z goes back in order whichever line has the focus. MathLive's per-line undo bindings are removed
   in `makeRow`, and the on-screen keyboard's undo/redo buttons are captured and sent to the same history.
   Keystrokes in one line less than 1 s apart are one step (one that ends where it began is no step); undo
-  puts the focus on the line that changed, or back where Enter was pressed when it removes a new line.
+  puts the focus on the line that changed, or back where Enter was pressed when it removes a new line, at
+  the caret it had before the change (`hist.moved` follows clicks and arrows). After the pad's undo sets a
+  line's value, `forgetTyping` flushes MathLive's inline-shortcut buffer: left in place, the next key that
+  completes a shortcut (x after an undone x → ×) rolls the line back to MathLive's own earlier snapshot.
   Deleting a non-empty line with ×, clearing and importing also show an Undo toast, which only ever undoes
   that one step: any later step or undo takes the toast away.
 - **Copy all…** (☰) copies as LaTeX or plain text, with or without answers (none when answers are Off).
@@ -176,11 +182,13 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   (the line's answer, tex, ×, then the next line), so answers are reachable from the keyboard. The on-screen
   keyboard's ↵ and ⌫ act like Enter and Backspace on lines (taken from MathLive at pointerdown, done at
   pointerup over the same key, so dragging off cancels). Enter or ↵ pressed before a new line has the focus
-  (~60 ms) goes to that new line (`pendingRow`). While
+  (~60 ms) goes to that new line (`pendingRow`). The Keyboard button opens the on-screen keyboard on the
+  line the focus came from (clicked or Tabbed into), else the line last edited, at its pre-Tab caret. While
   MathLive's own menu in a line is open, none of the pad's shortcuts run: it handles its own keys, and
   rebuilding the pad under it breaks it for the rest of the session. Buttons that remove or rebuild lines
-  (×, Clear pad, Import, the toast's Undo), reachable with Tab while the menu is open, only say "Close the
-  menu in the line first" (`menuBlocks`). panel.css hides and dims the line's ☰
+  (×, Clear pad, Import, the toast's Undo), reachable with Tab while the menu is open, and Ctrl+Z only say
+  "Close the menu in the line first" (`menuBlocks`); Enter and the arrows don't move between lines. A
+  right-click menu on a line without the focus doesn't close on Esc (stock MathLive): a click closes it. panel.css hides and dims the line's ☰
   with `color`, not `opacity`: opacity makes the toggle a stacking context, which traps the full-panel layer
   MathLive puts inside it to close the menu on a click elsewhere. `?` must stay typeable (it's a normal character in math), which is
   why the guide is on Ctrl+/.
