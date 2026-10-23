@@ -26,15 +26,13 @@ Rough priority order. Items marked *check* need a quick test before committing t
 6. **Answer format settings.** Decimal places, and fraction-first vs decimal-first.
 7. **Plotting.** New `type: 'plot'` in sandbox.js using `compile()` to sample points, returning number arrays;
       draw on a `<canvas>` in the panel. The reason CE lives in the sandbox in the first place.
-8. **Solve equations** (`x^2-4=0` → `x=±2`) via CE's `solve`, Algebra mode only. Conflicts with the
-      "relations never get an answer column" decision below; update that section if done.
-9. **Copy with answers / plain-text export.** Copy all currently copies input only. Option to include
+8. **Copy with answers / plain-text export.** Copy all currently copies input only. Option to include
       results, and an AsciiMath/plain-text format for non-LaTeX destinations.
-10. **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
+9. **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
       migration from `v1` (see "Renaming / moving the folder").
-11. **Real undo** beyond the one-shot clear toast (e.g. deleted lines).
-12. *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): unknown what CE 0.133 supports.
-13. *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
+10. **Real undo** beyond the one-shot clear toast (e.g. deleted lines).
+11. *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): unknown what CE 0.133 supports.
+12. *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
 
 ## Load it
 
