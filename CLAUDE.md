@@ -33,6 +33,14 @@ Rough priority order. Items marked *check* need a quick test before committing t
 10. **Real undo** beyond the one-shot clear toast (e.g. deleted lines).
 11. *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): unknown what CE 0.133 supports.
 12. *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
+13. **Hostile-input and fuzz testing.** Paste and import LaTeX built to exploit MathLive's renderer (`\href`,
+      `\htmlData`, `\enclose`, `\class`, colors and borders, deep nesting, huge input) and check that nothing
+      runs, no link or restyling escapes the line, and the panel doesn't hang. The CSP blocks inline scripts
+      and all network, so the realistic risk is cosmetic or a self-inflicted hang. Also fuzz the engine
+      (generated and mutated lines through sandbox.js in Node: no escaped exceptions, no stuck job, "=" decimals
+      really exact) and the panel (random keys, clicks, pastes and imports: no console errors, undo/redo round
+      trips, settings survive a restart). Check the `chrome.storage.local` quota too: a huge import's failed
+      save is swallowed silently in `store.save`.
 
 ## Load it
 
