@@ -7,34 +7,34 @@ Manifest V3, no build step, no network access at runtime — every library is ve
 
 Rough priority order. Items marked *check* need a quick test before committing to any UI.
 
-- [ ] **Update vendored libraries — after the store approves 1.2.0.** MathLive 0.111.1 fixes XSS bugs
+1. **Update vendored libraries — after the store approves 1.2.0.** MathLive 0.111.1 fixes XSS bugs
       (`\enclose`, `\href`/`\htmlData` attribute values) and CSS injection through LaTeX color/border values;
       0.110.0 is affected. Low risk here (needs crafted LaTeX in your own pad, and the panel CSP blocks inline
       handlers), but take it. 0.111.0 has breaking accessibility changes to `<math-field>`, so retest keyboard
       navigation between lines, copy, the shortcuts and the `speak` removal in `makeRow`. Take the current
       Compute Engine too (0.133 → latest; no security entries) and check the sample answers. Ship as 1.2.1, or
       1.3.0 if behaviour visibly changes. (An old branch with 0.111.0 / 0.147.0 was deleted unmerged.)
-- [ ] **Engine watchdog.** sandbox.js evaluates synchronously and panel.js has no timeout, so a heavy line
+2. **Engine watchdog.** sandbox.js evaluates synchronously and panel.js has no timeout, so a heavy line
       (`\sum_{n=1}^{10^9} n`, `1000000!`) hangs the engine and every later request queues behind it (stale-id
       filtering doesn't help). If no `result` arrives within ~3 s, replace the iframe, re-ping, and mark the
       pad/line as "took too long".
-- [ ] **Mark lines that don't parse.** `evalLine` returns `null` for `!e.isValid`, so a typo looks the same as
+3. **Mark lines that don't parse.** `evalLine` returns `null` for `!e.isValid`, so a typo looks the same as
       "no answer needed". Return an `invalid` flag and show a dim marker.
-- [ ] **Reuse earlier results.** Click an answer to insert it into the current line, and/or an `ans` symbol
+4. **Reuse earlier results.** Click an answer to insert it into the current line, and/or an `ans` symbol
       for the previous line's value (the engine already walks lines top to bottom on one CE instance).
-- [ ] **Degrees/radians toggle.** `\sin(30)` = −0.988 surprises people. Send it as a setting in the `eval` message.
-- [ ] **Answer format settings.** Decimal places, and fraction-first vs decimal-first.
-- [ ] **Plotting.** New `type: 'plot'` in sandbox.js using `compile()` to sample points, returning number arrays;
+5. **Degrees/radians toggle.** `\sin(30)` = −0.988 surprises people. Send it as a setting in the `eval` message.
+6. **Answer format settings.** Decimal places, and fraction-first vs decimal-first.
+7. **Plotting.** New `type: 'plot'` in sandbox.js using `compile()` to sample points, returning number arrays;
       draw on a `<canvas>` in the panel. The reason CE lives in the sandbox in the first place.
-- [ ] **Solve equations** (`x^2-4=0` → `x=±2`) via CE's `solve`, Algebra mode only. Conflicts with the
+8. **Solve equations** (`x^2-4=0` → `x=±2`) via CE's `solve`, Algebra mode only. Conflicts with the
       "relations never get an answer column" decision below; update that section if done.
-- [ ] **Copy with answers / plain-text export.** Copy all currently copies input only. Option to include
+9. **Copy with answers / plain-text export.** Copy all currently copies input only. Option to include
       results, and an AsciiMath/plain-text format for non-LaTeX destinations.
-- [ ] **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
+10. **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
       migration from `v1` (see "Renaming / moving the folder").
-- [ ] **Real undo** beyond the one-shot clear toast (e.g. deleted lines).
-- [ ] *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): unknown what CE 0.133 supports.
-- [ ] *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
+11. **Real undo** beyond the one-shot clear toast (e.g. deleted lines).
+12. *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): unknown what CE 0.133 supports.
+13. *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
 
 ## Load it
 
