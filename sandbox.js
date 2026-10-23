@@ -188,6 +188,7 @@
     if (!src) return null;
     const e = ce.parse(src);
     if (!e.isValid) { const code = parseError(e); return code ? { invalid: code } : null; }
+    if (e.latex.includes('\\square')) return { invalid: 'missing' };   // typed log(100) is \log_{100}(\square)
     // Unknowns are checked before evaluate(): letters assigned on earlier lines are already known.
     // For a := line, only its right-hand side counts (the letter being assigned is new).
     const numeric = ((e.operator === 'Assign' ? e.op2 : e)?.unknowns || []).length === 0;
@@ -202,7 +203,6 @@
 
     const same = x => key(x) === key(src);
     const exactL = tidy(val.latex), approxV = val.N();
-    if (exactL.includes('\\square')) return { invalid: 'missing' };   // log(100) typed: \log_{100}(\square)
     let exact = same(exactL) ? null : exactL;
     // Too long to show: a number like 10000!, or a radical over one (\sqrt{2^{2001}}).
     const tooLong = exactL.length > MAX_EXACT_NUMBER && (val.isNumberLiteral || /\d{100}/.test(norm(exactL)));

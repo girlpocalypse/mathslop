@@ -122,20 +122,22 @@
   // ---------- toast ----------
   const toastEl = $('toast'); let toastT;
   function toast(msg, action){
+    toastEl.inert = false;                             // before the text changes, so it's announced
     toastEl.textContent = msg;
     toastEl.classList.toggle('has-action', !!action);
     if (action) {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label;
-      b.addEventListener('click', () => { toastEl.classList.remove('show'); action.run(); });
+      b.addEventListener('click', () => { hideToast(); action.run(); });
       toastEl.append(b);
     }
     toastEl.classList.add('show'); clearTimeout(toastT);
-    toastT = setTimeout(() => toastEl.classList.remove('show'), action ? 5000 : 1600);
+    toastT = setTimeout(hideToast, action ? 5000 : 1600);
   }
-  // A faded toast keeps no button that Tab could still reach (and Enter still run).
-  toastEl.addEventListener('transitionend', () => { if (!toastEl.classList.contains('show')) toastEl.querySelector('button')?.remove(); });
+  // A hidden toast is inert, so Tab can't reach its Undo button (and Enter can't run it) while it fades out,
+  // or after: with reduced motion there's no transition, so no transitionend to tidy up on.
+  function hideToast(){ toastEl.classList.remove('show'); toastEl.inert = true; }
   // An Undo toast is for the step it announced; any later step (or undo) takes it away.
-  const dropUndoToast = () => { if (toastEl.classList.contains('has-action')) toastEl.classList.remove('show'); };
+  const dropUndoToast = () => { if (toastEl.classList.contains('has-action')) hideToast(); };
   // Compute Engine writes e and i as \exponentialE and \imaginaryI, which other LaTeX tools don't know.
   const portable = l => l.replace(/\\exponentialE(?![A-Za-z])/g, 'e').replace(/\\imaginaryI(?![A-Za-z])/g, 'i')
     .replace(/\\differentialD(?![A-Za-z])/g, '\\mathrm{d}');
@@ -320,14 +322,20 @@
   // Keystrokes in the same line less than a second apart are one step.
   const hist = (() => {
     const MAX = 200;
-    let past = [], future = [], cur = null, groupRow = null, groupT = 0, quiet = false;
+    // cur is the pad as last changed, with the caret right after that change (what redo returns to);
+    // caret is the same pad with the caret where it is now, which the next change records to go back to.
+    let past = [], future = [], cur = null, caret = null, groupRow = null, groupT = 0, quiet = false;
     const sameLines = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
     function snap(focus){
       const fs = fields();
       let i = fs.indexOf(focus || document.activeElement); if (i < 0) i = fs.indexOf(lastField);
-      return { lines: fs.map(f => f.value), focus: i, pos: i >= 0 ? fs[i].position : 0 };
+      const f = fs[i], tabbed = f && f !== document.activeElement && f.caretBeforeTab;
+      return { lines: fs.map(f => f.value), focus: i, pos: !f ? 0 : tabbed ? tabbed.ranges[0][1] : f.position };
     }
-    function push(){ past.push(cur); if (past.length > MAX) past.shift(); future = []; dropUndoToast(); }
+    function push(){
+      past.push(caret && sameLines(caret.lines, cur.lines) ? caret : cur); caret = null;
+      if (past.length > MAX) past.shift(); future = []; dropUndoToast();
+    }
     const firstDiff = (a, b) => { for (let i = 0; i < Math.max(a.length, b.length); i++) if (a[i] !== b[i]) return i; return -1; };
     // The keyboard's undo/redo buttons are dimmed from these (panel.css), not from MathLive's own history.
     function sync(){ document.body.dataset.undo = past.length ? 'yes' : 'no'; document.body.dataset.redo = future.length ? 'yes' : 'no'; }
@@ -346,9 +354,9 @@
       if (mf) { mf.focus(); requestAnimationFrame(() => { mf.position = Math.min(pos, mf.lastOffset); }); }
     }
     return {
-      reset(){ past = []; future = []; cur = snap(); groupRow = null; sync(); },
+      reset(){ past = []; future = []; cur = snap(); caret = groupRow = null; sync(); },
       // The caret moved without an edit (click, arrows): undoing the next edit puts it back here.
-      moved(mf){ if (quiet || !cur) return; const s = snap(mf); if (sameLines(s.lines, cur.lines)) cur = s; },
+      moved(mf){ if (quiet || !cur) return; const s = snap(mf); if (sameLines(s.lines, cur.lines)) caret = s; },
       typed(row){
         if (quiet) return;
         const s = snap(), now = Date.now();
@@ -362,8 +370,8 @@
       // Returns the step (for undoToast), or null if nothing changed.
       change(fn){
         if (quiet) { fn(); return null; }
-        const before = snap();                 // where the caret is now (clicks and arrows don't update cur)
-        if (sameLines(before.lines, cur.lines)) cur = before;
+        const before = snap();                 // where the caret is now: an answer reached by Tab, say
+        if (sameLines(before.lines, cur.lines)) caret = before;
         push(); quiet = true;
         let focus;
         try { focus = fn(); } finally { quiet = false; }
@@ -372,8 +380,8 @@
         if (sameLines(cur.lines, step.lines)) { past.pop(); sync(); return null; }   // nothing changed after all
         sync(); return step;
       },
-      undo(){ if (!past.length) return false; const from = cur; future.push(cur); cur = past.pop(); groupRow = null; restore(cur, from); sync(); return true; },
-      redo(){ if (!future.length) return false; const from = cur; past.push(cur); cur = future.pop(); groupRow = null; restore(cur, from); sync(); return true; },
+      undo(){ if (!past.length) return false; const from = cur; future.push(cur); cur = past.pop(); caret = groupRow = null; restore(cur, from); sync(); return true; },
+      redo(){ if (!future.length) return false; const from = cur; past.push(caret && sameLines(caret.lines, cur.lines) ? caret : cur); cur = future.pop(); caret = groupRow = null; restore(cur, from); sync(); return true; },
       isLatest: step => past.at(-1) === step
     };
   })();
@@ -467,6 +475,8 @@
     }
     return false;
   }
+  // MathLive reads \overline as nothing at all (1/3 would be "0."), so a repetend is spelled out.
+  const spoken = l => portable(l).replace(/\\overline\{([^{}]*)\}/g, '\\text{ with }$1\\text{ repeating}');
   function answerParts(res){
     if (!res || res.invalid || res.slow) return [];
     const parts = [];
@@ -493,7 +503,7 @@
       out.innerHTML = parts.map((p, i) => `<span class="part" role="button" tabindex="0" data-i="${i}">${toMarkup(p.rel + ' ' + p.latex)}</span>`).join('');
     } catch { out.innerHTML = ''; return; }   // MathLive gives up on enormous answers
     out.querySelectorAll('.part').forEach((el, i) => {
-      let said = parts[i].latex; try { said = MathLive.convertLatexToSpeakableText(parts[i].rel + ' ' + parts[i].latex); } catch {}
+      let said = parts[i].latex; try { said = MathLive.convertLatexToSpeakableText(parts[i].rel + ' ' + spoken(parts[i].latex)); } catch {}
       el.setAttribute('aria-label', said + '. Enter puts it in the line you were editing, Shift+Enter copies it.');
     });
     if (parts.length) out.title = 'Click to put this answer in the line you\'re editing. Shift+click to copy it.';

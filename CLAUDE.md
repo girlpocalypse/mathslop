@@ -142,7 +142,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   brackets if it's a sum, complex or negative and the line isn't empty (the engine's `group` for the exact
   part; for the decimal part, `isSum()`: a + or − outside braces, so x+1.414… and 0.3̅+0.3̅i count). Clicking a line's own answer (or
   with no line edited yet) starts a new line below with it. Shift+click copies it as LaTeX. Each part is
-  also a focusable button (Tab, then Enter / Shift+Enter). Only the answer itself is clickable, not the
+  also a focusable button (Tab, then Enter / Shift+Enter), labeled with `convertLatexToSpeakableText`; the
+  label spells out a repetend ("0. with 3 repeating"), which MathLive would read as nothing. Only the answer itself is clickable, not the
   empty rest of its row. "The line last edited" is the one last clicked into, typed in, or whose caret was
   moved (keys or the on-screen keyboard): lines Tab only passes through don't count, and the caret a line had
   before Tab moved it is put back, unless the line was edited or its caret moved since.
@@ -163,11 +164,13 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   in `makeRow`, and the on-screen keyboard's undo/redo buttons are captured and sent to the same history.
   Keystrokes in one line less than 1 s apart are one step (one that ends where it began is no step); undo
   puts the focus on the line that changed, or back where Enter was pressed when it removes a new line, at
-  the caret it had before the change (`hist.moved` follows clicks and arrows). After the pad's undo sets a
+  the caret it had before the change (`hist.moved` follows clicks and arrows, kept apart from the state redo
+  returns to, so redo still lands after the redone edit; an answer reached by Tab uses the pre-Tab caret). After the pad's undo sets a
   line's value, `forgetTyping` flushes MathLive's inline-shortcut buffer: left in place, the next key that
   completes a shortcut (x after an undone x → ×) rolls the line back to MathLive's own earlier snapshot.
   Deleting a non-empty line with ×, clearing and importing also show an Undo toast, which only ever undoes
-  that one step: any later step or undo takes the toast away.
+  that one step: any later step or undo takes the toast away. A hidden toast is `inert`, so its Undo button
+  can't be reached by Tab while it fades (or at all with reduced motion, which has no transition).
 - **Copy all…** (☰) copies as LaTeX or plain text, with or without answers (none when answers are Off).
   Plain text is MathLive's `convertLatexToAsciiMath` with fixes in `toText()` for `\coloneq`, `\mathrm{ans}`,
   repeating decimals, digit-group spaces, `\vert` and `^\circ`. Every LaTeX copy (line, answer, Copy all)
