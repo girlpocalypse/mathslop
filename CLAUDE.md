@@ -11,8 +11,8 @@ Rough priority order.
       draw on a `<canvas>` in the panel. The reason CE lives in the sandbox in the first place.
 2. **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
       migration from `v1` (see "Renaming / moving the folder").
-3. **Units — on hold** while deciding whether and how units should work at all. A working attempt is on the
-      local branch `units-experiment` (not pushed). What it found: CE 0.161 reads `5\,\mathrm{km}` and
+3. **Units — possible future enhancement, on hold** while deciding whether and how units should work at
+      all. A working attempt is on the local branch `units-experiment` (not pushed). What it found: CE 0.161 reads `5\,\mathrm{km}` and
       `5\text{km/h}` as `Quantity`, but MathLive's own unit shortcuts write `\operatorname{km}`, which CE reads as
       a variable; single-letter units (m, s, g, h) can't be told apart from variables while typing; CE's `\to`
       doesn't convert (`\operatorname{UnitConvert}` does); exact unit answers come out as siunitx `\qty[…]`,
