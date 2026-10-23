@@ -31,4 +31,4 @@ will change with it.
 
 ## Contact
 
-Open an issue at https://github.com/girlpocalypse/mathslop/issues
+Open an issue at https://github.com/mollymillions2035/mathslop/issues

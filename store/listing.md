@@ -59,7 +59,7 @@ Good to know:
 - Answers come from the Compute Engine library. Angles are in radians, and some lines just won't get an answer. Check anything that matters.
 - Dark theme only.
 
-Free and open source (MIT or WTFPL): https://github.com/girlpocalypse/mathslop
+Free and open source (MIT or WTFPL): https://github.com/mollymillions2035/mathslop
 ```
 
 **Category:** Education (in the Productivity group).
@@ -81,9 +81,9 @@ Don't use `docs/screenshot.png` (840x1966); store screenshots must be 1280x800 o
 
 **Official URL:** leave empty (needs a site verified in Google Search Console).
 
-**Homepage URL:** https://github.com/girlpocalypse/mathslop
+**Homepage URL:** https://github.com/mollymillions2035/mathslop
 
-**Support URL:** https://github.com/girlpocalypse/mathslop/issues
+**Support URL:** https://github.com/mollymillions2035/mathslop/issues
 
 **Mature content:** off.
 
@@ -126,7 +126,7 @@ Certifications: tick all three.
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose
 - I do not use or transfer user data to determine creditworthiness or for lending purposes
 
-**Privacy policy URL:** https://github.com/girlpocalypse/mathslop/blob/main/PRIVACY.md
+**Privacy policy URL:** https://github.com/mollymillions2035/mathslop/blob/main/PRIVACY.md
 
 ## Distribution tab
 
