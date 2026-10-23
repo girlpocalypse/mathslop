@@ -45,8 +45,8 @@ button{font:700 14px/1 var(--sans);color:var(--fg);background:var(--btn);border:
 button:hover{background:var(--btn-hover)}
 button:active{background:var(--btn-active)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-button[aria-pressed="true"]{background:var(--accent-bg);color:#fff}
-button[aria-pressed="true"]:hover{background:#4a90e8}
+button[aria-pressed="true"],button.primary{background:var(--accent-bg);color:#fff}
+button[aria-pressed="true"]:hover,button.primary:hover{background:#4a90e8}
 button.danger{color:var(--danger)}
 .pad{margin-top:10px;background:var(--card);border-radius:12px;box-shadow:0 0 0 1px var(--border),0 1px 3px 1px rgb(0 0 0 / .07),0 2px 6px 2px rgb(0 0 0 / .03);overflow:hidden}
 .row{display:grid;grid-template-columns:52px minmax(0,1fr) auto auto;align-items:center;border-bottom:1px solid var(--border);min-height:54px}
@@ -125,3 +125,29 @@ textarea:focus-visible{outline:2px solid var(--accent)}
 iframe.engine{display:none}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (max-width:440px){h1 small{display:none}}
+
+/* ---- answer options, markers, copy dialog ---- */
+.ansopts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:10px 2px 0}
+.ansopts .seg button{padding:5px 9px;font-size:13px}
+.opt{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--dim)}
+select{font:400 13px var(--sans);color:var(--fg);background:var(--btn);border:0;border-radius:6px;padding:5px 6px;cursor:pointer}
+select:hover{background:var(--btn-hover)}
+select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+option{background:var(--dialog);color:var(--fg)}
+.res{cursor:default}
+.res:has(.part){cursor:pointer}
+.res .part+.part{margin-left:.6em;opacity:.72}
+.res .part:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.res .mark{font:400 12px var(--sans);color:var(--dim);border:1px solid var(--border);border-radius:999px;padding:2px 8px;cursor:help;
+  animation:markin .2s .8s both}
+@keyframes markin{from{opacity:0}to{opacity:1}}
+.exopts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:4px 0 10px}
+.check{display:flex;align-items:center;gap:8px;font-size:14px}
+.check input{width:16px;height:16px;margin:0;accent-color:var(--accent-bg)}
+.check:has(input:disabled){color:var(--dim)}
+.exnote:empty{display:none}
+#exp textarea{min-height:160px}
+/* The on-screen keyboard's undo/redo run the pad's history (panel.js), so they're dimmed from it. */
+.ML__keyboard .action:is([data-command='"undo"'],[data-command='"redo"']) svg{opacity:.2}
+body[data-undo=yes] .ML__keyboard .action[data-command='"undo"'] svg,
+body[data-redo=yes] .ML__keyboard .action[data-command='"redo"'] svg{opacity:1}

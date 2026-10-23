@@ -7,32 +7,13 @@ Manifest V3, no build step, no network access at runtime — every library is ve
 
 Rough priority order. Items marked *check* need a quick test before committing to any UI.
 
-1. **Update vendored libraries — after the store approves 1.2.0.** MathLive 0.111.1 fixes XSS bugs
-      (`\enclose`, `\href`/`\htmlData` attribute values) and CSS injection through LaTeX color/border values;
-      0.110.0 is affected. Low risk here (needs crafted LaTeX in your own pad, and the panel CSP blocks inline
-      handlers), but take it. 0.111.0 has breaking accessibility changes to `<math-field>`, so retest keyboard
-      navigation between lines, copy, the shortcuts and the `speak` removal in `makeRow`. Take the current
-      Compute Engine too (0.133 → latest; no security entries) and check the sample answers. Ship as 1.2.1, or
-      1.3.0 if behaviour visibly changes. (An old branch with 0.111.0 / 0.147.0 was deleted unmerged.)
-2. **Engine watchdog.** sandbox.js evaluates synchronously and panel.js has no timeout, so a heavy line
-      (`\sum_{n=1}^{10^9} n`, `1000000!`) hangs the engine and every later request queues behind it (stale-id
-      filtering doesn't help). If no `result` arrives within ~3 s, replace the iframe, re-ping, and mark the
-      pad/line as "took too long".
-3. **Mark lines that don't parse.** `evalLine` returns `null` for `!e.isValid`, so a typo looks the same as
-      "no answer needed". Return an `invalid` flag and show a dim marker.
-4. **Reuse earlier results.** Click an answer to insert it into the current line, and/or an `ans` symbol
-      for the previous line's value (the engine already walks lines top to bottom on one CE instance).
-5. **Degrees/radians toggle.** `\sin(30)` = −0.988 surprises people. Send it as a setting in the `eval` message.
-6. **Answer format settings.** Decimal places, and fraction-first vs decimal-first.
-7. **Plotting.** New `type: 'plot'` in sandbox.js using `compile()` to sample points, returning number arrays;
+1. **Plotting.** New `type: 'plot'` in sandbox.js using `compile()` to sample points, returning number arrays;
       draw on a `<canvas>` in the panel. The reason CE lives in the sandbox in the first place.
-8. **Copy with answers / plain-text export.** Copy all currently copies input only. Option to include
-      results, and an AsciiMath/plain-text format for non-LaTeX destinations.
-9. **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
+2. **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
       migration from `v1` (see "Renaming / moving the folder").
-10. **Real undo** beyond the one-shot clear toast (e.g. deleted lines).
-11. *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): unknown what CE 0.133 supports.
-12. *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
+3. *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): CE 0.161 has `Quantity` arithmetic; unknown how much of
+      it the LaTeX parser reads.
+4. *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
 
 ## Load it
 
@@ -85,14 +66,33 @@ engine evaluates fine.
 
 ```
 panel → engine  { type: 'ping' }
-panel → engine  { type: 'eval', id, mode: 'arith' | 'full', lines: [latex, …] }
+panel → engine  { type: 'eval', id, mode: 'arith' | 'full', lines: [latex, …],
+                  angle: 'rad' | 'deg', places: 'auto' | n, skip: [index, …] }
 engine → panel  { type: 'ready' } | { type: 'error', message }
-engine → panel  { type: 'result', id, results: [ null | { exact, approx, approxIsExact } ] }
+engine → panel  { type: 'progress', id, line }           before each line
+engine → panel  { type: 'line', id, line, result }       each line's answer as soon as it's known
+engine → panel  { type: 'result', id, results: [ null | { invalid: code } | { slow: true }
+                                                  | { exact, approx, approxIsExact, group } ] }
 ```
 
-The panel sends the whole pad on every (debounced, 220 ms) change and ignores any result whose `id`
+The panel sends the whole pad on every (debounced, 220 ms) change and ignores any answer whose `id`
 isn't the latest, so a slow old answer can never overwrite a newer one. The engine builds a fresh
-ComputeEngine per request so `:=` assignments flow strictly top to bottom.
+ComputeEngine per request so `:=` assignments flow strictly top to bottom, and `ans` is assigned after
+each line that has a value. `group` means the answer needs brackets when put into another line.
+
+**Slow lines.** Each line runs inside `ce.withTimeLimit` (1.5 s) and comes back `{ slow: true }` if it
+runs over. Some operations never check the deadline (`\gcd(2^{300000}-1,3^{300000}-1)` runs ~15 s), so
+the panel also has a watchdog: 3 s with no message from the engine and it replaces the iframe, which kills
+the busy frame's process. Either way the line is remembered (`slowKeys` in panel.js, keyed by the line, the
+`:=` lines above it, and everything above when it uses `ans`) and sent as `skip` from then on, shown as
+"took too long".
+
+**A busy frame's messages arrive late.** `postMessage` from the sandbox reaches the panel only when the
+sandbox task that posted it ends (tested: five `progress` messages around two 1.4 s lines all arrived
+together at the end). So sandbox.js works out one line per task (a `MessageChannel` tick): post
+`progress`, yield, evaluate. That's how the watchdog knows which line hung, and how a newer request
+replaces an older one between lines (each tick carries its job's `gen`, so a replaced job's ticks stop). The panel's own thread is not blocked by a busy engine frame (it's
+out of process).
 
 To add a new engine feature (e.g. plotting): add a new message `type` in sandbox.js, return plain data
 (strings / numbers / arrays — anything structured-clonable), and render it in panel.js.
@@ -106,21 +106,51 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   learners keep them off; "Keep answers off" is the focused default and Esc cancels. Deliberate: the pad is
   meant for learning. No warning when switching Arithmetic ↔ Algebra or when a saved mode is restored.
 - Decimal shown with `=` when the value is rational (½ = 0.5, 22/7 = 3.\overline{142857}), `≈` only when
-  rounded (√2, π).
-- Relations (`=`, `<`, `:=`, …) never get an answer column.
+  rounded (√2, π, 1/97 whose repetend is too long to find). A repetend Compute Engine finds is parsed back
+  and checked against the exact value before it gets `=`. With fixed **Decimals**, rationals are rounded
+  exactly in BigInt, half away from zero (1/8 ≈ 0.13); values that would round to 0 (with Decimals ≥ 1),
+  or are ≥ 10¹⁵, get scientific notation; a decimal result (100·1.07¹⁰) is shown rounded instead of in
+  full. Exact numbers longer than 200 characters (10000!) show only the decimal.
+- Relations (`=`, `<`, `:=`, `⊃`, `∣`, …) and other true/false lines never get an answer column, and
+  equations are not solved.
+- **Answer options** (shown only when answers are on): Rad/Deg (`ce.angularUnit`, so d/dx sin x in Deg is
+  π cos x / 180), Decimals (auto, 0–10), and exact first / decimal first. The second form is dimmed.
+- **Click an answer** to insert that part (exact or decimal) at the caret of the line last edited, in
+  brackets if it's a sum, complex or negative and the line isn't empty. Clicking a line's own answer (or
+  with no line edited yet) starts a new line below with it. Shift+click copies it as LaTeX. Each part is
+  also a focusable button (Tab, then Enter / Shift+Enter).
+- **`ans`** (typed `ans`, an inline shortcut for `\mathrm{ans}`) is the value of the nearest line above that
+  has one: any line the mode evaluates, even one with no answer column (`7`). A `:=` line counts with its
+  value; a `f(x):=…` definition and true/false lines don't. In Arithmetic, lines with unknowns don't.
+- **Markers:** "can't read" for lines CE can't parse (tooltip from the parse error code; a line that parses
+  but makes no sense, like `\sin(\infty)`, gets nothing), "took too long" for slow lines (CE's `timeout`
+  cancellations only, not e.g. `recursion-depth-exceeded`). Only when answers are on. They fade in after
+  0.8 s so a half-typed line doesn't flash.
+- **Undo** is one history for the whole pad (typing, new/deleted lines, clear, import, inserted answers),
+  so Ctrl+Z goes back in order whichever line has the focus. MathLive's per-line undo bindings are removed
+  in `makeRow`, and the on-screen keyboard's undo/redo buttons are captured and sent to the same history.
+  Keystrokes in one line less than 1 s apart are one step; undo puts the focus on the line that changed.
+  Deleting a non-empty line with ×, clearing and importing also show an Undo toast, which only ever undoes
+  that one step: any later step or undo takes the toast away.
+- **Copy all…** (☰) copies as LaTeX or plain text, with or without answers (none when answers are Off).
+  Plain text is MathLive's `convertLatexToAsciiMath` with fixes in `toText()` for `\coloneq`, `\mathrm{ans}`,
+  repeating decimals, digit-group spaces, `\vert` and `^\circ`. Every LaTeX copy (line, answer, Copy all)
+  goes through `portable()`, which turns CE's `\exponentialE` / `\imaginaryI` into plain `e` / `i`.
 - **Keyboard labels:** stock MathLive keycaps show placeholder boxes (■², √□). `prettyCap()` rewrites the
   *displayed* LaTeX to calculator-style labels (x², √x, ∫f(x)dx) while keeping the original `insert`.
 - **Letter colors** (toggle): same letter = same color on every line and in answers; e, i, π stay white.
   Implemented by a MutationObserver on each math-field's (open) shadow root, recoloring `.ML__mathit`.
 - **Shortcuts:** Enter new line · ↑/↓ and ←/→ at edges move between lines · Backspace on empty line deletes
-  it · Esc Esc clears the pad (with Undo toast) · Ctrl+/ opens the shortcut guide. `?` must stay typeable
-  (it's a normal character in math), which is why the guide is on Ctrl+/.
+  it · Esc Esc clears the pad (with Undo toast) · Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo and redo across the
+  pad · Ctrl+/ opens the shortcut guide. `?` must stay typeable (it's a normal character in math), which is
+  why the guide is on Ctrl+/.
 - **No read-aloud.** MathLive's Ctrl+Alt+↑/↓ `speak` keybindings are removed in `makeRow`: they send the line
   to Chrome TTS, which may be an online voice, breaking "nothing leaves the device" in PRIVACY.md. People
   who need speech use a screen reader.
 - Esc is *not* intercepted while a `\command` is being typed (MathLive's LaTeX mode), or when a dialog/menu is open.
 - Theme: libadwaita dark only (GNOME). Fonts: Adwaita Sans / Adwaita Mono with fallbacks.
-- Storage: `chrome.storage.local`, key `mathslop.v1` → `{ lines, mode, varColors }`.
+- Storage: `chrome.storage.local`, key `mathslop.v1` → `{ lines, mode, varColors, angle, places, order,
+  copyFmt, copyAns }`. Missing fields fall back to defaults, so older saved data still loads.
   Falls back to localStorage if panel.html is opened outside the extension.
 
 ## Versioning
@@ -154,14 +184,17 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 
 ## Vendored versions
 
-- MathLive 0.110.0 (MIT) — `vendor/mathlive/` (stock, unpatched; the artifact/web version needed a patch
-  to keep the virtual keyboard inside an iframe, the side panel does not).
-- @cortex-js/compute-engine 0.133.0 (MIT) — `vendor/compute-engine/compute-engine.min.js` is
+- MathLive 0.111.1 (MIT) — `vendor/mathlive/` (stock, unpatched; the artifact/web version needed a patch
+  to keep the virtual keyboard inside an iframe, the side panel does not). Since 0.111.0 `<math-field>`
+  has no default `aria-label`; `renumber()` sets "Line N".
+- @cortex-js/compute-engine 0.161.0 (MIT) — `vendor/compute-engine/compute-engine.min.js` is
   `dist/umd-min/compute-engine.cjs` renamed to `.js` (classic script, exposes `globalThis.ComputeEngine`).
   A classic script is used on purpose: the sandbox has a null origin, and ES module loading there needs CORS.
 
 To update: `npm pack mathlive @cortex-js/compute-engine`, copy the same files over, reload, and check the
-sample lines still produce answers.
+sample lines still produce answers. CE changes fast (0.133 → 0.161 in a month) and its changelog is long;
+read its Breaking Changes sections. 0.161 needed `repeatingDecimal: 'vinculum'` to keep 22/7 = 3.\overline{142857}
+and writes big integers in MathJSON as `{ num: "…e+2499" }`.
 
 ## Renaming / moving the folder
 

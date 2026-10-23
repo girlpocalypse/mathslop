@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "mathslop",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A multiline math scratchpad in the side panel. Optional live answers, works offline.",
   "homepage_url": "https://github.com/mollymillions2035/mathslop",
   "minimum_chrome_version": "116",
