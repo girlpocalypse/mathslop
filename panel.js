@@ -6,7 +6,8 @@
   const SAMPLE = [
     'a\\coloneq 3', 'b\\coloneq 4', '\\sqrt{a^2+b^2}',
     '\\int_0^{\\pi}\\sin(x)\\,dx', '\\sum_{n=1}^{100} n',
-    '\\frac{1}{3}+\\frac{1}{6}', '\\frac{d}{dx}x^3', 'e^{i\\pi}+1', 'x^2+y^2=r^2'
+    '\\frac{1}{3}+\\frac{1}{6}', '\\frac{d}{dx}x^3', 'e^{i\\pi}+1', 'x^2+y^2=r^2',
+    'f(x)\\coloneq x^2+1', 'f(3)'
   ];
   const PLACES = ['auto', 0, 1, 2, 3, 4, 5, 6, 8, 10];
   const $ = id => document.getElementById(id);

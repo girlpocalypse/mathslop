@@ -5,15 +5,18 @@ Manifest V3, no build step, no network access at runtime — every library is ve
 
 ## Open items
 
-Rough priority order. Items marked *check* need a quick test before committing to any UI.
+Rough priority order.
 
 1. **Plotting.** New `type: 'plot'` in sandbox.js using `compile()` to sample points, returning number arrays;
       draw on a `<canvas>` in the panel. The reason CE lives in the sandbox in the first place.
 2. **Multiple pads** (named tabs). Storage becomes `{ pads: [...] }`, so bump to `mathslop.v2` with a
       migration from `v1` (see "Renaming / moving the folder").
-3. *check* **Units** (`5\,\mathrm{km}/2\,\mathrm{h}`): CE 0.161 has `Quantity` arithmetic; unknown how much of
-      it the LaTeX parser reads.
-4. *check* **User functions** (`f(x)\coloneq x^2`, then `f(3)`): probably works; if so, add to the sample lines.
+3. **Units — on hold** while deciding whether and how units should work at all. A working attempt is on the
+      local branch `units-experiment` (not pushed). What it found: CE 0.161 reads `5\,\mathrm{km}` and
+      `5\text{km/h}` as `Quantity`, but MathLive's own unit shortcuts write `\operatorname{km}`, which CE reads as
+      a variable; single-letter units (m, s, g, h) can't be told apart from variables while typing; CE's `\to`
+      doesn't convert (`\operatorname{UnitConvert}` does); exact unit answers come out as siunitx `\qty[…]`,
+      which MathLive can't render; and unit names count as unknowns, so Arithmetic skips unit lines.
 
 ## Load it
 
@@ -122,6 +125,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **`ans`** (typed `ans`, an inline shortcut for `\mathrm{ans}`) is the value of the nearest line above that
   has one: any line the mode evaluates, even one with no answer column (`7`). A `:=` line counts with its
   value; a `f(x):=…` definition and true/false lines don't. In Arithmetic, lines with unknowns don't.
+- **User functions:** `f(x) := x^2+1`, then `f(3)` = 10; `f(a+1)` in Algebra, several arguments, nesting and
+  d/dx f(x) work. Plain CE behaviour, nothing special in sandbox.js. A definition with `=` instead of `:=` is
+  just an equation. Two sample lines show it.
 - **Markers:** "can't read" for lines CE can't parse (tooltip from the parse error code; a line that parses
   but makes no sense, like `\sin(\infty)`, gets nothing), "took too long" for slow lines (CE's `timeout`
   cancellations only, not e.g. `recursion-depth-exceeded`). Only when answers are on. They fade in after
