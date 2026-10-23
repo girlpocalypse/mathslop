@@ -126,12 +126,14 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   3, not CE's 3.0. With fixed **Decimals**, rationals and short floats are rounded exactly in BigInt, half
   away from zero (1/8 and 0.5·0.25 ≈ 0.13); values that would round to 0 (with Decimals ≥ 1), or are
   ≥ 10¹⁵, get scientific notation, real and imaginary parts beyond a double (e^{1000}) or below it
-  (e^{-1000}) too; a decimal result (100·1.07¹⁰) is shown rounded instead of in full. Exact numbers longer
-  than 200 characters (10000!) show only the decimal.
+  (e^{-1000}) too; a decimal result (100·1.07¹⁰) is shown rounded instead of in full. A complex value is
+  rounded part by part with the same rules (CE's `Real`/`Imaginary`, so ⅛i ≈ 0.13i at 2 places). Exact
+  numbers longer than 200 characters (10000!) show only the decimal, and an exact form with a rounded float
+  inside (94.247…/π for 180/π·arcsin(0.5)) isn't shown. No decimal for NaN (0⁰ = Indeterminate).
 - No answer that just repeats the line: compared after dropping spaces and braces around one character
-  (MathLive writes `\frac13`, CE `\frac{1}{3}`). Not against CE's non-canonical parse, which already folds
-  `7\div 2` into `\frac{7}{2}` and `3\%` into `0.03`, so their answers would go missing. 2^{0.5} gives only
-  ≈ 1.414… in CE 0.161 (0.133 gave √2): a decimal exponent is a float.
+  (MathLive writes `\frac13`, CE `\frac{1}{3}`) and reading CE's `\exponentialE` / `\imaginaryI` as e / i. Not against CE's non-canonical parse, which already folds
+  `7\div 2` into `\frac{7}{2}` and `3\%` into `0.03`, so their answers would go missing. 2^{0.5}, arcsin(0.5)
+  and e^{0.5} give only a decimal in CE 0.161 (0.133 gave √2, π/6, √e): a decimal argument makes a float.
 - Relations (`=`, `<`, `:=`, `⊃`, `∣`, …) and other true/false lines never get an answer column, and
   equations are not solved.
 - **Answer options** (shown only when answers are on): Rad/Deg (`ce.angularUnit`, so d/dx sin x in Deg is

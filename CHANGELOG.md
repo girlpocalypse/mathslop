@@ -31,7 +31,8 @@ store description (store/listing.md).
 - Each line is labeled "Line N" for screen readers, and Tab moves through the page in order (a line, its
   answer, its tex and × buttons, the next line) instead of jumping from line to line; ↑/↓ and ←/→ at the
   edges still do that.
-- A power with a decimal exponent (2^0.5) gives a decimal answer only (≈ 1.414…); write 2^(1/2) for √2.
+- A power or function of a decimal (2^0.5, arcsin(0.5), e^0.5) gives a decimal answer only (≈ 1.414…); use a
+  fraction (2^(1/2)) for the exact form.
 - MathLive 0.110.0 → 0.111.1 (fixes XSS and CSS-injection bugs with crafted LaTeX), Compute Engine 0.133.0 →
   0.161.0.
 

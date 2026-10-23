@@ -178,6 +178,7 @@
     });
   }
   const lineAt = row => pendingRow?.isConnected ? pendingRow : row;
+  const activeRow = () => document.activeElement?.tagName === 'MATH-FIELD' ? document.activeElement.closest('.row') : null;
   pad.addEventListener('focusin', e => { if (e.target.closest?.('.row') === pendingRow) pendingRow = null; });
   window.addEventListener('pointerdown', e => { if (!e.target.closest?.('.ML__keyboard')) pendingRow = null; }, true);
   function removeEmptyRow(row){
@@ -205,7 +206,9 @@
     acts.innerHTML = '<button type="button" data-a="copy" title="Copy this line as LaTeX">tex</button><button type="button" data-a="del" title="Delete this line">×</button>';
     row.append(num, mf, res, acts);
 
-    mf.addEventListener('input', () => { hist.typed(row); schedule(); });
+    mf.addEventListener('input', () => { mf.caretBeforeTab = null; hist.typed(row); schedule(); });
+    // The on-screen keyboard's keys and arrows fire no keydown: any caret move that isn't Tab's own counts.
+    mf.addEventListener('selection-change', () => { if (!tabNav) mf.caretBeforeTab = null; });
     watch(mf);
     let tabbing = false;   // move-out from Tab: let focus go on in page order (answer, tex, ×, next line)
     mf.addEventListener('keydown', e => {
@@ -288,8 +291,9 @@
     const target = lastField?.isConnected && lastField.closest('.row') !== from ? lastField : null;
     hist.change(() => {
       if (!target) return focusIn(insertAfter(from, latex));
+      const caret = target.caretBeforeTab;            // read first: focusing the line may move its caret
       target.focus();
-      if (target.caretBeforeTab) { target.selection = target.caretBeforeTab; target.caretBeforeTab = null; }
+      if (caret) { target.selection = caret; target.caretBeforeTab = null; }
       // A sum or a negative number keeps its brackets inside another expression: 2·(x+1), not 2·x+1.
       const wrap = group && target.value.trim() !== '';
       target.insert(wrap ? '\\left(' + latex + '\\right)' : latex, { insertionMode: 'replaceSelection', selectionMode: 'after', format: 'latex' });
@@ -562,7 +566,9 @@
     if (e.key === 'ArrowUp')   { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
     if (e.key === 'Escape')    { e.preventDefault(); e.stopPropagation(); openMenu(false); bMenu.focus(); }
   });
-  const menuAction = (id, fn) => $(id).addEventListener('click', () => { openMenu(false); fn(); });
+  // The clicked item is hidden as the menu closes, so the focus goes back to ☰ first: otherwise Chrome
+  // drops it to the page after the action has moved it (Clear pad's new line never got it).
+  const menuAction = (id, fn) => $(id).addEventListener('click', () => { openMenu(false); bMenu.focus(); fn(); });
 
   menuAction('btn-copy', () => copyText(portable(fields().map(f => f.value).filter(Boolean).join('\n')), 'All lines copied as LaTeX'));
   menuAction('btn-clear', () => clearAll());
@@ -651,8 +657,8 @@
   window.addEventListener('pointerdown', e => {
     vkSwallow = false; vkPress = null;
     const key = vkKey(e.target), c = key?.getAttribute('data-command') || '';
-    const mf = document.activeElement?.tagName === 'MATH-FIELD' ? document.activeElement : null, row = mf?.closest('.row');
-    const enter = c.includes('commit'), back = c.includes('deleteBackward') && mf?.value === '' && rows().length > 1;
+    const row = activeRow(), at = row && lineAt(row);
+    const enter = c.includes('commit'), back = c.includes('deleteBackward') && at?.querySelector('math-field').value === '' && rows().length > 1;
     if (!row || !(enter || back) || lineMenuOpen()) return;
     e.preventDefault(); e.stopPropagation(); vkSwallow = true; vkPress = { key, enter, row };
   }, true);
@@ -660,7 +666,7 @@
   window.addEventListener('pointerup', e => {
     const p = vkPress; vkPress = null;
     if (!p || vkKey(document.elementFromPoint(e.clientX, e.clientY)) !== p.key || !p.row.isConnected || lineMenuOpen()) return;
-    const at = lineAt(p.row);
+    const at = lineAt(activeRow() || p.row);   // a new line may have taken the focus during the press
     if (p.enter) newLineAfter(at);
     else if (at.querySelector('math-field').value === '' && rows().length > 1) removeEmptyRow(at);
   }, true);

@@ -65,7 +65,7 @@ math-field::part(virtual-keyboard-toggle){display:none}
    the full-panel layer MathLive puts inside it to close its menu on a click elsewhere. */
 math-field::part(menu-toggle){color:transparent;transition:color .15s,background .2s}
 .row:hover math-field::part(menu-toggle),.row:focus-within math-field::part(menu-toggle){color:color-mix(in srgb,var(--accent) 60%,transparent)}
-math-field::part(menu-toggle):hover{color:var(--fg)}
+.row math-field::part(menu-toggle):hover{color:var(--fg)}
 .res{font-size:19px;color:var(--result);padding:0 12px;white-space:nowrap;overflow-x:auto;overflow-y:hidden;padding-block:4px;max-width:42vw;cursor:copy}
 .res:empty{padding:0}
 .res .ML__latex{color:inherit}
