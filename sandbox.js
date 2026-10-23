@@ -28,7 +28,7 @@
   // For telling an answer from the line as typed: MathLive writes \frac13, the engine \frac{1}{3}.
   // MathLive also writes \sin\left(1\right) where the engine writes \sin(1).
   const key = x => norm(x).replace(/\\(left|right)(?![a-zA-Z])/g, '').replace(/\\exponentialE/g, 'e').replace(/\\imaginaryI/g, 'i')
-    .replace(/\{([0-9a-zA-Z])\}/g, '$1');
+    .replace(/\{([0-9a-zA-Z])\}/g, '$1').replace(/[\^_]\{\}/g, '');   // and 2^{}, drawn as 2
   // Compute Engine 0.161 writes a float that happens to be whole as 3.0 (1.5·2) and 1.0\cdot10^{30}.
   const tidy = x => x.replace(/(\d)\.0+(?!\d|\\,)/g, '$1').replace(/(^|[+-])1\\imaginaryI/g, '$1\\imaginaryI');   // and 1i for (-1)^{0.5}
   const numOf = v => String(typeof v === 'object' && v ? v.num : v);
@@ -79,7 +79,8 @@
     let e = String(a).length - String(q).length;
     if (e >= 0 ? a < q * 10n ** BigInt(e) : a * 10n ** BigInt(-e) < q) e--;    // 10^e <= a/q < 10^(e+1)
     const k = s - 1 - e, num = k >= 0 ? a * 10n ** BigInt(k) : a, den = k >= 0 ? q : q * 10n ** BigInt(-k);
-    let m = num / den; if ((num % den) * 2n >= den) m++;
+    let m = num / den; const rem = num % den; if (rem * 2n >= den) m++;
+    sci.exact = rem === 0n;                                                      // nothing was rounded off
     if (String(m).length > s) { m /= 10n; e++; }                                // 9.99… rounded up to 10
     const d = String(m);
     return (p < 0n ? '-' : '') + grouped(d[0], d.slice(1)) + '\\cdot10^{' + e + '}';
@@ -159,7 +160,8 @@
         return { latex: a < r[1] * 10n ** 21n ? aL : sci(r, PRECISION), exact: false };
       }
       const tiny = places > 0 && a !== 0n && 2n * a * 10n ** BigInt(places) < r[1], huge = a >= r[1] * 10n ** 15n;
-      return { latex: tiny || huge ? sci(r, places + 1) : fixed(r, places), exact: false };
+      if (tiny || huge) { const l = sci(r, places + 1); return { latex: l, exact: sci.exact }; }   // 10^{-5} = 1.00·10^{-5}
+      return { latex: fixed(r, places), exact: false };
     }
     // Beyond a double (e^{1000}) or underflowed to 0 (e^{-1000}): from the engine's own digits in MathJSON,
     // rounded like the rest.

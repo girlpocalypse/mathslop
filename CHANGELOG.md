@@ -49,6 +49,8 @@ store description (store/listing.md).
 - The menu inside a line closes when you click somewhere else. Before, it stayed open, and the pad's
   shortcuts stopped working until it was closed.
 - Holding Enter adds lines one below the other and leaves the cursor on the last one.
+- Messages at the bottom of the panel (and their Undo) show above the on-screen keyboard, not behind it.
+- Deleting a line with × leaves the cursor in the next line, so you can keep typing.
 - Typing d/dx (MathLive turns dx into a differential) gets an answer, like the sample line, and a line
   with an empty box in it such as typed log(100) is marked "can't read".
 

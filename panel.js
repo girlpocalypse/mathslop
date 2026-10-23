@@ -135,7 +135,12 @@
   }
   // A hidden toast is inert, so Tab can't reach its Undo button (and Enter can't run it) while it fades out,
   // or after: with reduced motion there's no transition, so no transitionend to tidy up on.
-  function hideToast(){ toastEl.classList.remove('show'); toastEl.inert = true; }
+  function hideToast(){
+    // A focused Undo button that went inert would drop the focus to the page (and a line focused after that
+    // never gets it): hand it to the button before the toast in Tab order first.
+    if (toastEl.contains(document.activeElement)) addBtn.focus();
+    toastEl.classList.remove('show'); toastEl.inert = true;
+  }
   // An Undo toast is for the step it announced; any later step (or undo) takes it away.
   const dropUndoToast = () => { if (toastEl.classList.contains('has-action')) hideToast(); };
   // Compute Engine writes e and i as \exponentialE and \imaginaryI, which other LaTeX tools don't know.
@@ -160,9 +165,14 @@
   window.addEventListener('keydown', e => { if (!MODIFIERS.has(e.key)) tabNav = e.key === 'Tab'; }, true);
   window.addEventListener('pointerdown', e => {
     tabNav = false;
-    // A click inside the line that already has the focus fires no focusin.
-    const mf = e.target.closest?.('.row math-field');
-    if (mf) { lastField = mf; mf.caretBeforeTab = null; }
+    clickedField = e.target.closest?.('.row math-field') || null;
+  }, true);
+  // A click inside the line that already has the focus fires no focusin. A click on a line's padding
+  // doesn't focus it at all, so it only counts once the line has the focus.
+  let clickedField = null;
+  window.addEventListener('pointerup', () => {
+    const mf = clickedField; clickedField = null;
+    if (mf && document.activeElement === mf) { lastField = mf; mf.caretBeforeTab = null; }
   }, true);
   pad.addEventListener('focusin', e => {
     if (e.target.tagName === 'MATH-FIELD' && !tabNav) { lastField = e.target; lastField.caretBeforeTab = null; }
@@ -252,8 +262,10 @@
       if (a === 'del' && !menuBlocks()) {
         const n = rows().indexOf(row) + 1, had = mf.value !== '';
         const step = hist.change(() => {
-          if (rows().length === 1) { mf.setValue('', { silenceNotifications: true }); forgetTyping(mf); }
-          else { row.remove(); renumber(); }
+          if (rows().length === 1) { mf.setValue('', { silenceNotifications: true }); forgetTyping(mf); return focusField(mf, 'end'); }
+          const next = row.nextElementSibling?.classList.contains('row') ? row.nextElementSibling : row.previousElementSibling;
+          row.remove(); renumber();
+          return focusField(next.querySelector('math-field'), 'end');   // not the page: typing and Tab go on from here
         });
         schedule();
         if (had) undoToast('Line ' + n + ' deleted', 'Line restored', step);
@@ -332,10 +344,10 @@
       const f = fs[i], tabbed = f && f !== document.activeElement && f.caretBeforeTab;
       return { lines: fs.map(f => f.value), focus: i, pos: !f ? 0 : tabbed ? tabbed.ranges[0][1] : f.position };
     }
-    function push(){
-      past.push(caret && sameLines(caret.lines, cur.lines) ? caret : cur); caret = null;
-      if (past.length > MAX) past.shift(); future = []; dropUndoToast();
-    }
+    // The state to go back to before the next change: where the caret is now, remembering where it was right
+    // after the change that made it (done), which is where redo of that change puts it.
+    function entry(){ const e = caret && sameLines(caret.lines, cur.lines) ? { ...caret, done: cur.done || cur } : cur; caret = null; return e; }
+    function push(){ past.push(entry()); if (past.length > MAX) past.shift(); future = []; dropUndoToast(); }
     const firstDiff = (a, b) => { for (let i = 0; i < Math.max(a.length, b.length); i++) if (a[i] !== b[i]) return i; return -1; };
     // The keyboard's undo/redo buttons are dimmed from these (panel.css), not from MathLive's own history.
     function sync(){ document.body.dataset.undo = past.length ? 'yes' : 'no'; document.body.dataset.redo = future.length ? 'yes' : 'no'; }
@@ -381,7 +393,7 @@
         sync(); return step;
       },
       undo(){ if (!past.length) return false; const from = cur; future.push(cur); cur = past.pop(); caret = groupRow = null; restore(cur, from); sync(); return true; },
-      redo(){ if (!future.length) return false; const from = cur; past.push(caret && sameLines(caret.lines, cur.lines) ? caret : cur); cur = future.pop(); caret = groupRow = null; restore(cur, from); sync(); return true; },
+      redo(){ if (!future.length) return false; const from = cur; past.push(entry()); cur = future.pop(); groupRow = null; restore(cur.done || cur, from); sync(); return true; },
       isLatest: step => past.at(-1) === step
     };
   })();
@@ -594,7 +606,9 @@
   });
   window.mathVirtualKeyboard?.addEventListener('geometrychange', () => {
     bKbd.setAttribute('aria-pressed', !!window.mathVirtualKeyboard.visible);
-    document.body.style.paddingBottom = window.mathVirtualKeyboard.boundingRect.height + 40 + 'px';
+    const h = window.mathVirtualKeyboard.visible ? window.mathVirtualKeyboard.boundingRect.height : 0;
+    document.body.style.paddingBottom = h + 40 + 'px';
+    document.body.style.setProperty('--kbd-h', h + 'px');   // toasts go above the keyboard
   });
 
   // ---------- ☰ menu ----------

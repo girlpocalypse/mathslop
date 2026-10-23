@@ -125,13 +125,14 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   otherwise it has probably been rounded to the engine's 21 digits and gets `≈`. A whole float is shown as
   3, not CE's 3.0. With fixed **Decimals**, rationals and short floats are rounded exactly in BigInt, half
   away from zero (1/8 and 0.5·0.25 ≈ 0.13); values that would round to 0 (with Decimals ≥ 1), or are
-  ≥ 10¹⁵, get scientific notation, real and imaginary parts beyond a double (e^{1000}) or below it
+  ≥ 10¹⁵, get scientific notation (with `=` when nothing was rounded off: 10⁻⁵ = 1.00·10⁻⁵ at 2 places), real and imaginary parts beyond a double (e^{1000}) or below it
   (e^{-1000}) too; a decimal result (100·1.07¹⁰) is shown rounded instead of in full. A complex value is
   rounded part by part with the same rules (CE's `Real`/`Imaginary`, so ⅛i ≈ 0.13i at 2 places). Exact
   numbers longer than 200 characters (10000!) show only the decimal, and an exact form with a rounded float
   inside (94.247…/π for 180/π·arcsin(0.5)) isn't shown. No decimal for NaN (0⁰ = Indeterminate).
 - No answer that just repeats the line: compared after dropping spaces and braces around one character
-  (MathLive writes `\frac13`, CE `\frac{1}{3}`) reading CE's `\exponentialE` / `\imaginaryI` as e / i and dropping `\left` / `\right` (MathLive's `\sin\left(1\right)`). Not against CE's non-canonical parse, which already folds
+  (MathLive writes `\frac13`, CE `\frac{1}{3}`) reading CE's `\exponentialE` / `\imaginaryI` as e / i and dropping `\left` / `\right` (MathLive's `\sin\left(1\right)`)
+  and empty `^{}` / `_{}` (2^ then → leaves `2^{}`, drawn as 2). Not against CE's non-canonical parse, which already folds
   `7\div 2` into `\frac{7}{2}` and `3\%` into `0.03`, so their answers would go missing. 2^{0.5}, arcsin(0.5)
   and e^{0.5} give only a decimal in CE 0.161 (0.133 gave √2, π/6, √e): a decimal argument makes a float.
 - Relations (`=`, `<`, `:=`, `⊃`, `∣`, …) and other true/false lines never get an answer column, and
@@ -145,7 +146,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   also a focusable button (Tab, then Enter / Shift+Enter), labeled with `convertLatexToSpeakableText`; the
   label spells out a repetend ("0. with 3 repeating"), which MathLive would read as nothing. Only the answer itself is clickable, not the
   empty rest of its row. "The line last edited" is the one last clicked into, typed in, or whose caret was
-  moved (keys or the on-screen keyboard): lines Tab only passes through don't count, and the caret a line had
+  moved (keys or the on-screen keyboard), counted at pointerup only if the line then has the focus (a click on
+  MathLive's 12 px padding doesn't focus it): lines Tab only passes through don't count, and the caret a line had
   before Tab moved it is put back, unless the line was edited or its caret moved since.
 - **`ans`** (typed `ans`, an inline shortcut for `\mathrm{ans}`) is the value of the nearest line above that
   has one: any line the mode evaluates, even one with no answer column (`7`). A `:=` line counts with its
@@ -165,12 +167,16 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   Keystrokes in one line less than 1 s apart are one step (one that ends where it began is no step); undo
   puts the focus on the line that changed, or back where Enter was pressed when it removes a new line, at
   the caret it had before the change (`hist.moved` follows clicks and arrows, kept apart from the state redo
-  returns to, so redo still lands after the redone edit; an answer reached by Tab uses the pre-Tab caret). After the pad's undo sets a
+  returns to: each step remembers the caret right after it as `done`, so redo lands after the redone edit;
+  an answer reached by Tab uses the pre-Tab caret). × leaves the focus in the line that takes its place. After the pad's undo sets a
   line's value, `forgetTyping` flushes MathLive's inline-shortcut buffer: left in place, the next key that
   completes a shortcut (x after an undone x → ×) rolls the line back to MathLive's own earlier snapshot.
   Deleting a non-empty line with ×, clearing and importing also show an Undo toast, which only ever undoes
   that one step: any later step or undo takes the toast away. A hidden toast is `inert`, so its Undo button
-  can't be reached by Tab while it fades (or at all with reduced motion, which has no transition).
+  can't be reached by Tab while it fades (or at all with reduced motion, which has no transition); if its
+  button had the focus, the focus goes to "+ add line" first, since a focused element made inert drops the
+  focus to the page and a line focused after that never gets it. Toasts sit above the on-screen keyboard
+  (`--kbd-h`, set on geometrychange).
 - **Copy all…** (☰) copies as LaTeX or plain text, with or without answers (none when answers are Off).
   Plain text is MathLive's `convertLatexToAsciiMath` with fixes in `toText()` for `\coloneq`, `\mathrm{ans}`,
   repeating decimals, digit-group spaces, `\vert` and `^\circ`. Every LaTeX copy (line, answer, Copy all)
