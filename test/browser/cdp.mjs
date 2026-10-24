@@ -39,7 +39,15 @@ export class Browser {
       if (m.method === 'Target.attachedToTarget') {
         const { sessionId, targetInfo, waitingForDebugger } = m.params;
         this.sessions.set(sessionId, targetInfo);
-        if (waitingForDebugger && !this.claim?.(m.params)) this.send('Runtime.runIfWaitingForDebugger', {}, sessionId).catch(() => {});
+        if (waitingForDebugger && !this.claim?.(m.params)) (async () => {
+          // the service worker (background.js) is measured from its first line, like the panel
+          if (process.env.MATHSLOP_COVERAGE && targetInfo.type === 'service_worker') {
+            await this.send('Profiler.enable', {}, sessionId).catch(() => {});
+            await this.send('Profiler.startPreciseCoverage', { callCount: true, detailed: true }, sessionId).catch(() => {});
+            (this.workers ??= []).push(sessionId);
+          }
+          await this.send('Runtime.runIfWaitingForDebugger', {}, sessionId).catch(() => {});
+        })();
       }
     });
     await this.send('Target.setDiscoverTargets', { discover: true });
@@ -110,6 +118,10 @@ export class Browser {
     });
   }
   async close(opts){
+    for (const sid of this.workers || []) {
+      const r = await Promise.race([this.send('Profiler.takePreciseCoverage', {}, sid).catch(() => null), sleep(2000)]);
+      if (r?.result) saveCoverage('worker', r.result);
+    }
     try { this.ws.close(); } catch {}
     await this.chrome.close(opts);
   }
@@ -149,6 +161,13 @@ export function charKey(ch){
   if (SHIFTED[ch]) return { key: ch, code: SHIFTED[ch][1], keyCode: VK[SHIFTED[ch][0]], shift: true };
   if (PLAIN[ch]) return { key: ch, code: PLAIN[ch][1], keyCode: PLAIN[ch][0], shift: false };
   throw new Error('no key for ' + JSON.stringify(ch));
+}
+
+// V8 coverage of the extension's own scripts (not vendor/, not the test helpers) into coverage/browser/.
+function saveCoverage(name, result){
+  const out = path.join(ROOT, 'coverage', 'browser'); fs.mkdirSync(out, { recursive: true });
+  const keep = result.filter(s => /^(chrome-extension:\/\/[^/]+|file:\/\/.*?)\/(?!vendor\/|test\/)[^/]+\.js$/.test(s.url));
+  if (keep.length) fs.writeFileSync(path.join(out, `${name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.json`), JSON.stringify(keep));
 }
 
 export class Page extends Session {
@@ -203,6 +222,7 @@ export class Page extends Session {
     await loaded;
   }
   async reload(){
+    await this.takeCoverage((this.coverageName || 'page') + '-pre-reload');   // a reload starts the counts over
     const loaded = new Promise(r => { const off = this.b.on(m => { if (m.sessionId === this.sessionId && m.method === 'Page.loadEventFired') { off(); r(); } }); });
     await this.send('Page.reload');
     await loaded;
@@ -268,10 +288,8 @@ export class Page extends Session {
   // ---- coverage ----
   async takeCoverage(name){
     if (!this.coverage) return;
-    const out = path.join(ROOT, 'coverage', 'browser'); fs.mkdirSync(out, { recursive: true });
     const { result } = await this.send('Profiler.takePreciseCoverage');
-    const keep = result.filter(s => /^chrome-extension:\/\/[^/]+\/(?!vendor\/)/.test(s.url) || s.url.startsWith('file://') && !s.url.includes('/vendor/'));
-    fs.writeFileSync(path.join(out, `${name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.json`), JSON.stringify(keep));
+    saveCoverage(name, result);
   }
   async close(){
     await this.takeCoverage(this.coverageName || 'page').catch(() => {});

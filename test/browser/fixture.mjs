@@ -11,8 +11,9 @@ export function useBrowser(opts = {}){
   const ctx = { b: null };
   let started;
   ctx.started = () => started ??= Browser.start(opts).then(b => { ctx.b = b; return b; });
+  ctx.cleanups = [];
   before(() => ctx.started());
-  after(async () => { await ctx.b?.close(); });
+  after(async () => { for (const f of ctx.cleanups) await f(); await ctx.b?.close(); });   // pages first, then Chromium
   return ctx;
 }
 
@@ -58,7 +59,8 @@ export async function storage(p, op, value){
 }
 
 // Waits until the answers have stopped changing (debounce 220 ms + engine).
-export async function settled(p, { quiet = 500, timeout = 8000 } = {}){
+export async function settled(p, { quiet = 600, timeout = 10000 } = {}){
+  await sleep(300);   // the 220 ms debounce first
   const t0 = Date.now(); let last = JSON.stringify(await answers(p)), since = Date.now();
   while (Date.now() - t0 < timeout) {
     await sleep(80);
@@ -89,6 +91,6 @@ export function sharedPanel(ctx, saved = { lines: [''], mode: 'off' }){
     await sp.p.reload(); await sp.p.ready();
     await sp.p.waitFor(() => globalThis.S?.ready, { what: 'the test hook' });
   });
-  after(async () => { const errs = sp.p?.errors() || []; await sp.p?.close(); assert.deepEqual(errs, [], 'console errors'); });
+  ctx.cleanups.push(async () => { const errs = sp.p?.errors() || []; await sp.p?.close(); assert.deepEqual(errs, [], 'console errors'); });
   return sp;
 }

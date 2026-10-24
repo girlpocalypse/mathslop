@@ -20,3 +20,9 @@ test('the hook exports exactly the names marked hook', async () => {
   const exported = await sp.p.run(() => Object.keys(Object.getOwnPropertyDescriptors(globalThis.__mathslopTest.panel)).sort());
   assert.deepEqual(exported, Object.entries(PANEL).filter(([, [, r]]) => r === 'hook').map(([n]) => n).sort());
 });
+
+test('every hook name can be read through the adapter', async () => {
+  const missing = await sp.p.run(S => Object.entries(globalThis.__mathslopModules).filter(([, [, r]]) => r === 'hook')
+    .filter(([name, [mod]]) => S[mod][name] === undefined).map(([n]) => n));
+  assert.deepEqual(missing, []);
+});

@@ -42,6 +42,15 @@ describe('on-screen keyboard', () => {
     await p.drag(vkey('commit'), vkey('deleteBackward')); await sleep(200);
     assert.deepEqual(await values(p), ['1', ''], 'released over another key: nothing');
   });
+  test('a cancelled press (pointercancel) does nothing', async t => {
+    const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });
+    await open(p);
+    const [x, y] = await p.point(vkey('commit'));
+    await p.mouse('mouseMoved', x, y); await p.mouse('mousePressed', x, y);
+    await p.run(() => window.dispatchEvent(new PointerEvent('pointercancel')));   // e.g. the touch became a scroll
+    await p.mouse('mouseReleased', x, y); await sleep(200);
+    assert.deepEqual(await values(p), ['1']);
+  });
   test('⌫ on an empty line deletes it', async t => {
     const p = await panel(t, ctx, { lines: ['1', ''], mode: 'off' });
     await open(p, 1);

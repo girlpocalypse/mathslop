@@ -5,11 +5,8 @@ import { useBrowser, panel, values, toastText, settled, clickLine, sleep } from 
 
 const ctx = useBrowser();
 const shown = p => p.run(() => [document.getElementById('toast').classList.contains('show'), document.getElementById('toast').inert]);
-const grant = async p => {
-  const origin = new URL(p.info.url || await ctx.b.panelUrl()).origin;
-  await ctx.b.send('Browser.grantPermissions', { origin: (await ctx.b.panelUrl()).replace(/\/panel\.html$/, ''), permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] }).catch(() => {});
-  return origin;
-};
+const grant = async () => ctx.b.send('Browser.grantPermissions', { origin: (await ctx.b.panelUrl()).replace(/\/panel\.html$/, ''),
+  permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
 const clipboard = p => p.run(() => navigator.clipboard.readText());
 
 describe('toasts', () => {
@@ -45,8 +42,8 @@ describe('toasts', () => {
 describe('copying', () => {
   test('tex copies the line as portable LaTeX; Shift+click copies an answer', async t => {
     const p = await panel(t, ctx, { lines: ['e^{i\\pi}+\\sqrt{-4}'], mode: 'full' });
-    await grant(p);
-    await settled(p);
+    await grant();
+    await p.waitFor(() => document.querySelector('.row .res .part'), { what: 'the answer', timeout: 10000 });
     await p.click('.row [data-a=copy]'); await sleep(150);
     assert.equal(await toastText(p), 'Line copied as LaTeX');
     assert.equal(await clipboard(p), 'e^{i\\pi}+\\sqrt{-4}');

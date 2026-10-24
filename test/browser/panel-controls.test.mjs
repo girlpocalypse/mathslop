@@ -54,6 +54,26 @@ describe('☰ menu', () => {
   });
 });
 
+describe('dialogs', () => {
+  test('Keyboard shortcuts from the menu, and its Close button', async t => {
+    const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });
+    await p.click('#btn-menu'); await p.click('#btn-keys'); await sleep(80);
+    assert.equal(await p.run(() => document.getElementById('keys').open), true);
+    await p.click('#keys-close'); await sleep(80);
+    assert.equal(await p.run(() => document.getElementById('keys').open), false);
+  });
+  test('Import → Cancel leaves the pad alone; Copy all → Close too', async t => {
+    const p = await panel(t, ctx, { lines: ['1', '2'], mode: 'off' });
+    await p.click('#btn-menu'); await p.click('#btn-import'); await sleep(80);
+    await p.run(() => { document.getElementById('imp').value = 'x'; });
+    await p.click('#imp-cancel'); await sleep(80);
+    assert.deepEqual(await values(p), ['1', '2']);
+    await p.click('#btn-menu'); await p.click('#btn-export'); await sleep(80);
+    await p.click('#exp-cancel'); await sleep(80);
+    assert.equal(await p.run(() => document.getElementById('exp').open), false);
+  });
+});
+
 describe('Copy all…', () => {
   const open = async p => { await p.click('#btn-menu'); await p.click('#btn-export'); await sleep(100); };
   const text = p => p.run(() => document.getElementById('exp-text').value);
@@ -69,6 +89,12 @@ describe('Copy all…', () => {
     await p.click('#exp-copy'); await sleep(150);
     assert.equal(await toastText(p), 'All lines copied as plain text');
   });
+  test('plain text falls back to LaTeX for a line MathLive can\'t convert', async t => {
+    const p = await panel(t, ctx, { lines: ['\\exponentialE^{x}'], mode: 'off' });
+    await p.run(() => { MathLive.convertLatexToAsciiMath = () => { throw new Error('x'); }; });
+    await open(p); await p.click('#exp [data-fmt=text]');
+    assert.equal(await text(p), 'e^{x}');
+  });
   test('with answers Off there are none to include', async t => {
     const p = await panel(t, ctx, { lines: ['1+1'], mode: 'off' });
     await open(p);
@@ -82,6 +108,15 @@ describe('Copy all…', () => {
     const p = await panel(t, ctx, { lines: ['x', '', 'y'], mode: 'off' });
     await p.click('#btn-menu'); await p.click('#btn-copy'); await sleep(150);
     assert.equal(await toastText(p), 'All lines copied as LaTeX');
+  });
+});
+
+describe('Decimals', () => {
+  test('back to auto from a number of places', async t => {
+    const p = await panel(t, ctx, { lines: ['\\sqrt2'], mode: 'arith', places: 2 });
+    assert.deepEqual(await settled(p), ['≈1.41']);
+    await p.run(() => { const s = document.getElementById('opt-places'); s.value = 'auto'; s.dispatchEvent(new Event('change')); });
+    assert.match((await settled(p))[0], /^≈1\.414/);
   });
 });
 

@@ -51,7 +51,10 @@ export const ENGINE = {
 // Top-level names declared directly in the body of a file's IIFE: function declarations and every
 // declarator of a top-level const/let. A small scanner, enough for this code base: it skips strings,
 // template literals, comments and regex literals, and tracks bracket depth.
-export function topLevelNames(src){
+export function topLevelNames(src){ return topLevelDecls(src).map(d => d.name); }
+
+// The same, with each name's offset in the source: [{ name, offset }] in source order.
+export function topLevelDecls(src){
   const names = [];
   let depth = 0, i = 0, prev = '';   // prev: last significant token, to tell a regex from a division
   const isId = c => /[A-Za-z0-9_$]/.test(c);
@@ -85,9 +88,9 @@ export function topLevelNames(src){
     const w = isId(c) ? word() : null;
     if (w) {
       if (depth === body) {
-        if (w === 'function') { i += w.length; const m = /^\s*([A-Za-z_$][\w$]*)/.exec(src.slice(i)); names.push(m[1]); prev = 'x'; continue; }
+        if (w === 'function') { const at = i; i += w.length; const m = /^\s*([A-Za-z_$][\w$]*)/.exec(src.slice(i)); names.push({ name: m[1], offset: at }); prev = 'x'; continue; }
         if (w === 'const' || w === 'let') { collecting = true; wantName = true; i += w.length; prev = 'x'; continue; }
-        if (collecting && wantName) { names.push(w); wantName = false; }
+        if (collecting && wantName) { names.push({ name: w, offset: i }); wantName = false; }
       }
       i += w.length; prev = w === 'return' ? 'return' : 'x'; continue;
     }
