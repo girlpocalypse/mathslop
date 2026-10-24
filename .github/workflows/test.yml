@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'   # Mondays 06:17 UTC: each new Chrome stable gets tested even with no commits
 permissions:
   contents: read
 jobs:
@@ -12,15 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
         with:
-          node-version: '22.x'
-      # Chrome for Testing, not branded Chrome: Chrome no longer accepts --load-extension, Chrome for Testing
-      # (and Chromium) still do. Pinned so CI doesn't change under us; a CI-time download, not a dependency.
-      - name: Install Chrome for Testing
+          persist-credentials: false   # nothing here pushes
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'          # the engines minimum
+          package-manager-cache: false  # no dependencies to cache
+      # The latest stable Chrome for Testing: stable is what users have (Chrome updates itself), so a red run with
+      # no code change is a real compatibility bug. Not branded Chrome: it no longer accepts --load-extension;
+      # Chrome for Testing still does. A CI-time download, not a project dependency.
+      - name: Install Chrome for Testing (stable)
         run: |
-          out=$(npx --yes @puppeteer/browsers@2 install chrome@156.0.8078.47 --path "$RUNNER_TEMP/browsers")
+          out=$(npx --yes @puppeteer/browsers@2 install chrome@stable --path "$RUNNER_TEMP/browsers")
           echo "$out"
           echo "CHROMIUM=$(echo "$out" | tail -1 | awk '{print $2}')" >> "$GITHUB_ENV"
       - run: sudo apt-get update && sudo apt-get install -y zip
@@ -33,12 +39,13 @@ jobs:
         env:
           CHROMIUM_FLAGS: --no-sandbox   # Ubuntu runners restrict the user namespaces Chromium's sandbox needs
           CHROMIUM_LOG: coverage/chromium   # each browser's stderr, uploaded with coverage/
+          TEST_CONCURRENCY: 2               # two Chromiums at a time on a 2-core runner
       - run: npm run test:zip
         env:
           CHROMIUM_FLAGS: --no-sandbox
           GH_TOKEN: ${{ github.token }}
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/
