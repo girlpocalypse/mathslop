@@ -51,6 +51,8 @@ store description (store/listing.md).
 - Holding Enter adds lines one below the other and leaves the cursor on the last one.
 - Messages at the bottom of the panel (and their Undo) show above the on-screen keyboard, not behind it.
 - Deleting a line with × leaves the cursor in the next line, so you can keep typing.
+- Giving a value to something other than a letter or a function (sin(x) := 1, ab := 5, area := 12) is
+  marked "can't read" instead of changing the answers of every line below it.
 - Typing d/dx (MathLive turns dx into a differential) gets an answer, like the sample line, and a line
   with an empty box in it such as typed log(100) is marked "can't read".
 

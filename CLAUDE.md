@@ -113,7 +113,10 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 
 - **Answers modes:** Off / Arithmetic / Algebra. Arithmetic answers a line only if it has no unknowns
   (`expr.unknowns` is empty *before* evaluating, so letters assigned earlier with `:=` count as known).
-  Algebra also simplifies symbolic lines (2x+3x → 5x). `:=` lines are evaluated in every mode.
+  Algebra also simplifies symbolic lines (2x+3x → 5x). `:=` lines are evaluated in every mode, but only
+  for a name of the user's own (x, Δ, `\mathrm{price}`) or a function `f(x, y) :=`: anything CE's library
+  defines is refused as "can't read" (`libraryHas`, checked in an untouched engine). CE reads `a+b := 5` as a
+  new definition of Add, and `area := 12` (a·r·e·a) as one of the invisible ×, which changed every line below.
 - **Answers default to Off**, and turning them on from Off shows a warning dialog (`#ans-warn`) suggesting
   learners keep them off; "Keep answers off" is the focused default and Esc cancels. Deliberate: the pad is
   meant for learning. No warning when switching Arithmetic ↔ Algebra or when a saved mode is restored.
@@ -131,8 +134,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   numbers longer than 200 characters (10000!) show only the decimal, and an exact form with a rounded float
   inside (94.247…/π for 180/π·arcsin(0.5)) isn't shown. No decimal for NaN (0⁰ = Indeterminate).
 - No answer that just repeats the line: compared after dropping spaces and braces around one character
-  (MathLive writes `\frac13`, CE `\frac{1}{3}`) reading CE's `\exponentialE` / `\imaginaryI` as e / i and dropping `\left` / `\right` (MathLive's `\sin\left(1\right)`)
-  and empty `^{}` / `_{}` (2^ then → leaves `2^{}`, drawn as 2). Not against CE's non-canonical parse, which already folds
+  (MathLive writes `\frac13`, CE `\frac{1}{3}`) reading CE's `\exponentialE` / `\imaginaryI` as e / i and dropping `\left` / `\right` (MathLive's `\sin\left(1\right)`).
+  An empty `^{}` / `_{}` (2^ then → leaves it, drawn as nothing) is dropped before parsing: `2^{}3` looks
+  like 23, so it is 23. Not against CE's non-canonical parse, which already folds
   `7\div 2` into `\frac{7}{2}` and `3\%` into `0.03`, so their answers would go missing. 2^{0.5}, arcsin(0.5)
   and e^{0.5} give only a decimal in CE 0.161 (0.133 gave √2, π/6, √e): a decimal argument makes a float.
 - Relations (`=`, `<`, `:=`, `⊃`, `∣`, …) and other true/false lines never get an answer column, and
@@ -149,7 +153,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   moved (keys or the on-screen keyboard), counted at pointerup only if the line then has the focus (a click on
   MathLive's 12 px padding doesn't focus it): lines Tab only passes through don't count, and the caret a line had
   before Tab moved it is put back, unless the line was edited or its caret moved since.
-- **`ans`** (typed `ans`, an inline shortcut for `\mathrm{ans}`) is the value of the nearest line above that
+- **`ans`** (typed `ans`, an inline shortcut for `\mathrm{ans}`; MathLive then types `*` and what follows in
+  the same upright style, `\mathrm{ans\cdot2}`, so `ansOut()` moves it back out) is the value of the nearest line above that
   has one: any line the mode evaluates, even one with no answer column (`7`). A `:=` line counts with its
   value; a `f(x):=…` definition and true/false lines don't. In Arithmetic, lines with unknowns don't.
 - **User functions:** `f(x) := x^2+1`, then `f(3)` = 10; `f(a+1)` in Algebra, several arguments, nesting and
@@ -183,6 +188,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   goes through `portable()`, which turns CE's `\exponentialE` / `\imaginaryI` into plain `e` / `i`.
 - **Keyboard labels:** stock MathLive keycaps show placeholder boxes (■², √□). `prettyCap()` rewrites the
   *displayed* LaTeX to calculator-style labels (x², √x, ∫f(x)dx) while keeping the original `insert`.
+  MathLive's spoken label for a key is its raw insert or HTML (`#@^2}`, `&divide;`) and a keycap's own
+  `aria-label` is ignored, so a MutationObserver relabels rendered keys (`spokenKey`).
 - **Letter colors** (toggle): same letter = same color on every line and in answers; e, i, π stay white.
   Implemented by a MutationObserver on each math-field's (open) shadow root, recoloring `.ML__mathit`.
 - **Shortcuts:** Enter new line · ↑/↓ and ←/→ at edges move between lines · Backspace on empty line deletes
@@ -197,7 +204,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   rebuilding the pad under it breaks it for the rest of the session. Buttons that remove or rebuild lines
   (×, Clear pad, Import, the toast's Undo), reachable with Tab while the menu is open, and Ctrl+Z only say
   "Close the menu in the line first" (`menuBlocks`); Enter and the arrows don't move between lines. A
-  right-click menu on a line without the focus doesn't close on Esc (stock MathLive): a click closes it. panel.css hides and dims the line's ☰
+  right-click menu on a line without the focus gets no keys (stock MathLive): Esc there would start a
+  `\command` in the line, so the pad closes the menu by clicking its dismiss layer instead. panel.css hides and dims the line's ☰
   with `color`, not `opacity`: opacity makes the toggle a stacking context, which traps the full-panel layer
   MathLive puts inside it to close the menu on a click elsewhere. `?` must stay typeable (it's a normal character in math), which is
   why the guide is on Ctrl+/.
@@ -205,6 +213,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   to Chrome TTS, which may be an online voice, breaking "nothing leaves the device" in PRIVACY.md. People
   who need speech use a screen reader.
 - Esc is *not* intercepted while a `\command` is being typed (MathLive's LaTeX mode), or when a dialog/menu is open.
+  Esc presses less than 1 s after one that closed a line's menu don't count toward Esc Esc (`menuEscAt`):
+  pressing Esc a few times to get out of a menu mustn't clear the pad.
 - Theme: libadwaita dark only (GNOME). Fonts: Adwaita Sans / Adwaita Mono with fallbacks.
 - Storage: `chrome.storage.local`, key `mathslop.v1` → `{ lines, mode, varColors, angle, places, order,
   copyFmt, copyAns }`. Missing fields fall back to defaults, so older saved data still loads.

@@ -69,6 +69,21 @@
     if (Array.isArray(o.variants)) o.variants = o.variants.map(prettyCap);
     return o;
   }
+  // MathLive labels a key for screen readers with its raw insert or HTML ("#@^2}", "&divide;", "\\pi"), and
+  // a keycap's own aria-label is ignored. Relabel the keys it renders with the words for what they show.
+  function spokenKey(raw){
+    if (raw.includes('&')) return new DOMParser().parseFromString(raw, 'text/html').body.textContent.trim();
+    if (!/[\\#^_{]/.test(raw)) return null;
+    const l = (prettyLatex(raw) || raw).replace(/\\exponentialE/g, 'e').replace(/\\imaginaryI/g, 'i');
+    try { return MathLive.convertLatexToSpeakableText(l).trim() || null; } catch { return null; }
+  }
+  new MutationObserver(() => {
+    for (const k of document.querySelectorAll('.ML__keyboard [aria-label]:not([data-said])')) {
+      k.dataset.said = '';
+      const said = spokenKey(k.getAttribute('aria-label'));
+      if (said) k.setAttribute('aria-label', said);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
   try {
     const vk = window.mathVirtualKeyboard;
     const src = JSON.parse(JSON.stringify(vk.normalizedLayouts));
@@ -182,6 +197,19 @@
   // keys. Rebuilding the pad while it's open breaks it for the session, so the pad's shortcuts wait.
   // After setValue, MathLive still holds the keys typed before it for its inline shortcuts (xx → ×, pi → π):
   // the next key that completes one rolls the line back to before the change. A caret move flushes them.
+  // After the ans shortcut, MathLive types * (and what follows) in the same upright style: \mathrm{ans\cdot2},
+  // which reads as one word. Move it back out, keeping the caret where it is.
+  function ansOut(mf){
+    let v = mf.value, i, changed = false;
+    while ((i = v.search(/\\mathrm\{ans[^}]/)) >= 0) {
+      let j = i + 11, depth = 1;                          // just after "\mathrm{ans"
+      for (; j < v.length && depth; j++) { if (v[j] === '{') depth++; else if (v[j] === '}') depth--; }
+      v = v.slice(0, i) + '\\mathrm{ans}' + v.slice(i + 11, j - 1) + v.slice(j); changed = true;
+    }
+    if (!changed) return;
+    const pos = mf.position;
+    mf.setValue(v, { silenceNotifications: true }); forgetTyping(mf); mf.position = pos;
+  }
   const forgetTyping = mf => { try { mf.executeCommand('moveToMathfieldEnd'); } catch {} };
   const lineMenuOpen = mf => (mf ? [mf] : fields()).some(f => f.shadowRoot?.querySelector('.ui-menu-container'));
   // The same for buttons that remove or rebuild lines, reached with the keyboard while a menu is open.
@@ -226,7 +254,7 @@
     acts.innerHTML = '<button type="button" data-a="copy" title="Copy this line as LaTeX">tex</button><button type="button" data-a="del" title="Delete this line">×</button>';
     row.append(num, mf, res, acts);
 
-    mf.addEventListener('input', () => { mf.caretBeforeTab = null; hist.typed(row); schedule(); });
+    mf.addEventListener('input', () => { mf.caretBeforeTab = null; ansOut(mf); hist.typed(row); schedule(); });
     // The on-screen keyboard's keys and arrows fire no keydown: any caret move that isn't Tab's own counts.
     mf.addEventListener('selection-change', () => {
       hist.moved(mf);                                  // a click into a line moves its caret before it has focus
@@ -340,7 +368,9 @@
     const sameLines = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
     function snap(focus){
       const fs = fields();
-      let i = fs.indexOf(focus || document.activeElement); if (i < 0) i = fs.indexOf(lastField);
+      // (a new line from a fast Enter that hasn't got the focus yet counts as having it)
+      let i = fs.indexOf(focus || (pendingRow?.isConnected && pendingRow.querySelector('math-field')) || document.activeElement);
+      if (i < 0) i = fs.indexOf(lastField);
       const f = fs[i], tabbed = f && f !== document.activeElement && f.caretBeforeTab;
       return { lines: fs.map(f => f.value), focus: i, pos: !f ? 0 : tabbed ? tabbed.ranges[0][1] : f.position };
     }
@@ -392,8 +422,10 @@
         if (sameLines(cur.lines, step.lines)) { past.pop(); sync(); return null; }   // nothing changed after all
         sync(); return step;
       },
-      undo(){ if (!past.length) return false; const from = cur; future.push(cur); cur = past.pop(); caret = groupRow = null; restore(cur, from); sync(); return true; },
-      redo(){ if (!future.length) return false; const from = cur; past.push(entry()); cur = future.pop(); groupRow = null; restore(cur.done || cur, from); sync(); return true; },
+      // future keeps the entry each undo took off past, and redo puts that same entry back: a later undo then
+      // returns to the caret from before the edit, wherever the redos left it.
+      undo(){ if (!past.length) return false; const from = cur, before = past.pop(); future.push({ state: cur, before }); cur = before; caret = groupRow = null; restore(cur, from); sync(); return true; },
+      redo(){ if (!future.length) return false; const from = cur, f = future.pop(); past.push(f.before); cur = f.state; caret = groupRow = null; restore(cur.done || cur, from); sync(); return true; },
       isLatest: step => past.at(-1) === step
     };
   })();
@@ -469,6 +501,7 @@
 
   const INVALID_TIP = {
     'missing': 'Something is missing, like an empty box.',
+    'assign': 'Only a letter (x := 5) or a function (f(x) := …) can be given a value.',
     'unexpected-operator': 'An operator is missing a number on one side.',
     'unexpected-command': 'This uses a command the engine doesn\'t know.',
     'unexpected-delimiter': 'A bracket isn\'t matched.',
@@ -738,11 +771,22 @@
     e.preventDefault(); e.stopPropagation();
     if (type === 'click') vkSwallow = false;
   }, true);
-  let escArmed = 0;
+  let escArmed = 0, menuEscAt = 0;   // Esc pressed to close a line's menu, and the ones right after it, don't clear
   window.addEventListener('keydown', e => {
     if (document.querySelector('dialog[open]')) return;        // dialogs keep their own Esc
     const k = e.key.toLowerCase(), mod = (e.ctrlKey || e.metaKey) && !e.altKey;
     const undoKey = (mod && (k === 'z' || k === 'y')) || e.key === 'Undo' || e.key === 'Redo';
+    if (e.key === 'Escape' && lineMenuOpen()) menuEscAt = Date.now();
+    if (e.key === 'Escape') {
+      // A right-click menu on a line without the focus gets no keys: MathLive would take this Esc as the
+      // start of a \command in the line under it. Close the menu the way a click elsewhere does.
+      const f = fields().find(f => lineMenuOpen(f));
+      if (f && !f.shadowRoot.activeElement?.closest?.('.ui-menu-container')) {
+        e.preventDefault(); e.stopPropagation();
+        f.shadowRoot.querySelector('[role=presentation]')?.click();
+        return;
+      }
+    }
     if (lineMenuOpen()) { if (undoKey) menuBlocks(); return; }  // so does MathLive's menu in a line
     if (!menu.hidden) return;                                  // menu handles its own keys
     const inText = e.target.closest?.('textarea, input, select');
@@ -750,6 +794,7 @@
     if (e.key === 'Escape' && !inText) {
       if (mf && mf.mode === 'latex') return;                   // Esc still exits a \command
       e.preventDefault(); e.stopPropagation();
+      if (Date.now() - menuEscAt < 1000) { menuEscAt = Date.now(); escArmed = 0; return; }   // still closing a menu
       if (Date.now() - escArmed < 1500) { escArmed = 0; clearAll(); }
       else { escArmed = Date.now(); toast('Press Esc again to clear the pad'); }
       return;

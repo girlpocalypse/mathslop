@@ -184,13 +184,28 @@
     return (err && err.op1 && err.op1.string) || null;
   }
 
+  // Names Compute Engine itself defines (Add, Sin, Pi…), looked up in an engine no line has touched.
+  let library = null;
+  const libraryHas = name => { library ??= new CE(); try { return !!library.lookupDefinition(name); } catch { return true; } };
+
   function evalLine(ce, src, m){
     // MathLive's dx shortcut writes \differentialD, which the engine reads in \int but not in \frac{d}{dx}.
-    src = (src || '').trim().replace(/\\differentialD(?![a-zA-Z])/g, '\\mathrm{d}');
+    // And an empty ^{} or _{} (2^ then →) is drawn as nothing: 2^{}3 looks like 23, so it is 23.
+    src = (src || '').trim().replace(/\\differentialD(?![a-zA-Z])/g, '\\mathrm{d}').replace(/[\^_]\{\}/g, '');
     if (!src) return null;
     const e = ce.parse(src);
     if (!e.isValid) { const code = parseError(e); return code ? { invalid: code } : null; }
     if (e.latex.includes('\\square')) return { invalid: 'missing' };   // typed log(100) is \log_{100}(\square)
+    // Only a name of the user's own (x, price as \mathrm{price}, Δ) or a function f(x, y) can be given a value.
+    // The parser reads a+b := 5 as a new definition of Add, and area := 12 (a·r·e·a) as one of the invisible
+    // ×, which would change every line below it; π := 3 is quietly ignored.
+    if (e.operator === 'Assign') {
+      let nc = null; try { nc = ce.parse(src, { canonical: false }).json; } catch {}
+      const name = Array.isArray(nc) && nc[0] === 'Assign' ? nc[1] : null, rhs = Array.isArray(nc) ? nc[2] : null;
+      const params = Array.isArray(rhs) && rhs[0] === 'Function' ? rhs.slice(2) : [];
+      if (typeof name === 'string' ? libraryHas(name) || !params.every(p => typeof p === 'string') : !(Array.isArray(name) && name[0] === 'Subscript'))
+        return { invalid: 'assign' };
+    }
     // Unknowns are checked before evaluate(): letters assigned on earlier lines are already known.
     // For a := line, only its right-hand side counts (the letter being assigned is new).
     const numeric = ((e.operator === 'Assign' ? e.op2 : e)?.unknowns || []).length === 0;
@@ -222,8 +237,9 @@
     // engine's precision, so it's "≈". With Decimals set, one with more places than that is rounded.
     const fd = exact && val.isNumberLiteral && val.isExact === false ? floatParts(val) : null;
     if (fd && (fd.sig >= 16 || (m.places !== 'auto' && fd.places > m.places))) {
-      const d = m.places === 'auto' ? exactL : decimal(ce, val, approxV, m.places).latex;
-      if (fd.sig >= 16 || norm(d) !== norm(exactL)) { exact = null; approx = d; approxIsExact = false; }
+      const d = m.places === 'auto' ? { latex: exactL, exact: false } : decimal(ce, val, approxV, m.places);
+      // (5·10^{-7} at 2 places is 5.00·10^{-7} exactly: only rounded off digits make it ≈)
+      if (fd.sig >= 16 || norm(d.latex) !== norm(exactL)) { exact = null; approx = d.latex; approxIsExact = fd.sig < 16 && d.exact; }
     }
     // An exact form with a rounded float inside it (\frac{94.247…}{\pi} for \frac{180}{\pi}\arcsin(0.5)) isn't
     // exact: shown with ≈ when there's no decimal (1.581…x for \sqrt{2.5}x in Algebra), else not at all.
