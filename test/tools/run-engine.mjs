@@ -19,7 +19,8 @@ const r = spawnSync(process.execPath, [
   ...gate,
   '--test-reporter=spec', '--test-reporter-destination=stdout',
   '--test-reporter=lcov', '--test-reporter-destination=' + lcov,
-  ...files, ...process.argv.slice(2).filter(a => a !== '--no-gate')
+  ...process.argv.slice(2).filter(a => a !== '--no-gate'),   // extra node flags go before the files
+  ...files
 ], { cwd: ROOT, stdio: 'inherit' });
 let status = r.status ?? 1;
 const measured = fs.existsSync(lcov) && /^SF:(.*\/)?sandbox\.js$/m.test(fs.readFileSync(lcov, 'utf8'));
