@@ -114,9 +114,11 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Answers modes:** Off / Arithmetic / Algebra. Arithmetic answers a line only if it has no unknowns
   (`expr.unknowns` is empty *before* evaluating, so letters assigned earlier with `:=` count as known).
   Algebra also simplifies symbolic lines (2x+3x → 5x). `:=` lines are evaluated in every mode, but only
-  for a name of the user's own (x, Δ, `\mathrm{price}`) or a function `f(x, y) :=`: anything CE's library
-  defines is refused as "can't read" (`libraryHas`, checked in an untouched engine). CE reads `a+b := 5` as a
-  new definition of Add, and `area := 12` (a·r·e·a) as one of the invisible ×, which changed every line below.
+  for a letter (x, D, N, Δ, Γ: any single Latin or Greek letter except the constants e, i, π, γ, φ) or a
+  function `f(x, y) :=`. Any other name CE's library defines is refused as "can't read" (`assignable` /
+  `libraryHas`, checked in an untouched engine): CE reads `a+b := 5` as a new definition of Add, and
+  `area := 12` (a·r·e·a) as one of the invisible ×, which changed every line below. A subscripted name
+  (`x_1 := 3`) is refused too: CE accepts it but never uses the value.
 - **Answers default to Off**, and turning them on from Off shows a warning dialog (`#ans-warn`) suggesting
   learners keep them off; "Keep answers off" is the focused default and Esc cancels. Deliberate: the pad is
   meant for learning. No warning when switching Arithmetic ↔ Algebra or when a saved mode is restored.
@@ -153,6 +155,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   moved (keys or the on-screen keyboard), counted at pointerup only if the line then has the focus (a click on
   MathLive's 12 px padding doesn't focus it): lines Tab only passes through don't count, and the caret a line had
   before Tab moved it is put back, unless the line was edited or its caret moved since.
+- **Inline shortcuts:** MathLive's that turn letters typed as a product into symbols this pad isn't for
+  (gt → >, nn → ∩, ft → a unit, ch → a non-English cosh…) are removed in `makeRow` (`NO_SHORTCUT`).
 - **`ans`** (typed `ans`, an inline shortcut for `\mathrm{ans}`; MathLive then types `*` and what follows in
   the same upright style, `\mathrm{ans\cdot2}`, so `ansOut()` moves it back out) is the value of the nearest line above that
   has one: any line the mode evaluates, even one with no answer column (`7`). A `:=` line counts with its
@@ -163,8 +167,9 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 - **Markers:** "can't read" for lines CE can't parse (tooltip from the parse error code; a line that parses
   but makes no sense, like `\sin(\infty)`, gets nothing), "took too long" for slow lines (CE's `timeout`
   cancellations only, not e.g. `recursion-depth-exceeded`). Only when answers are on. They fade in after
-  0.8 s so a half-typed line doesn't flash. A result with an empty box in it (typed log(100) becomes
-  `\log_{100}(\square)`) is "can't read" too. MathLive's dx shortcut writes `\differentialD`, which CE
+  0.8 s so a half-typed line doesn't flash. A line with an empty box in it is "can't read" too, whether
+  MathLive's `\placeholder{}` (2^□3 from the keyboard's xⁿ, which CE would answer as 2·3 = 6) or a `\square`
+  in CE's reading of it (typed log(100) becomes `\log_{100}(\square)`). MathLive's dx shortcut writes `\differentialD`, which CE
   rejects in d/dx, so sandbox.js reads it as `\mathrm{d}`.
 - **Undo** is one history for the whole pad (typing, new/deleted lines, clear, import, inserted answers),
   so Ctrl+Z goes back in order whichever line has the focus. MathLive's per-line undo bindings are removed

@@ -187,24 +187,34 @@
   // Names Compute Engine itself defines (Add, Sin, Pi…), looked up in an engine no line has touched.
   let library = null;
   const libraryHas = name => { library ??= new CE(); try { return !!library.lookupDefinition(name); } catch { return true; } };
+  // A single letter or a Greek letter can always be given a value, even one Compute Engine also uses for
+  // something (D, N, Γ, ζ); its constants e, i, π, γ and φ can't. (CE's names for \zeta, \varpi… below.)
+  const GREEK = new Set(('alpha beta delta epsilon epsilonSymbol Zeta eta theta thetaSymbol iota kappa kappaSymbol lambda mu nu ' +
+    'xi omicron piSymbol rho rhoSymbol sigma finalSigma tau upsilon phi chi psi omega digamma ' +
+    'Gamma Delta Theta Lambda Xi CapitalPi Sigma Upsilon Phi Psi Omega').split(' '));
+  const CONSTANTS = new Set(['e', 'i', 'Pi', 'EulerGamma', 'GoldenRatio', 'ExponentialE', 'ImaginaryUnit']);
+  const assignable = name => !CONSTANTS.has(name) && (/^[A-Za-z]$/.test(name) || GREEK.has(name) || !libraryHas(name));
 
   function evalLine(ce, src, m){
     // MathLive's dx shortcut writes \differentialD, which the engine reads in \int but not in \frac{d}{dx}.
     // And an empty ^{} or _{} (2^ then →) is drawn as nothing: 2^{}3 looks like 23, so it is 23.
     src = (src || '').trim().replace(/\\differentialD(?![a-zA-Z])/g, '\\mathrm{d}').replace(/[\^_]\{\}/g, '');
     if (!src) return null;
+    // An empty box left in the line (the keyboard's xⁿ, ∫ limits, a log base): \placeholder{} would just be
+    // left out, so 2^□3 would be answered 6.
+    if (src.includes('\\placeholder')) return { invalid: 'missing' };
     const e = ce.parse(src);
     if (!e.isValid) { const code = parseError(e); return code ? { invalid: code } : null; }
     if (e.latex.includes('\\square')) return { invalid: 'missing' };   // typed log(100) is \log_{100}(\square)
-    // Only a name of the user's own (x, price as \mathrm{price}, Δ) or a function f(x, y) can be given a value.
-    // The parser reads a+b := 5 as a new definition of Add, and area := 12 (a·r·e·a) as one of the invisible
-    // ×, which would change every line below it; π := 3 is quietly ignored.
+    // Only a letter (x, D, Δ) or a function f(x, y) can be given a value. The parser reads a+b := 5 as a new
+    // definition of Add, and area := 12 (a·r·e·a) as one of the invisible ×, which would change every line
+    // below it; π := 3 is quietly ignored, and so is x_1 := 3 (subscripted names don't work in the engine).
     if (e.operator === 'Assign') {
       let nc = null; try { nc = ce.parse(src, { canonical: false }).json; } catch {}
       const name = Array.isArray(nc) && nc[0] === 'Assign' ? nc[1] : null, rhs = Array.isArray(nc) ? nc[2] : null;
       const params = Array.isArray(rhs) && rhs[0] === 'Function' ? rhs.slice(2) : [];
-      if (typeof name === 'string' ? libraryHas(name) || !params.every(p => typeof p === 'string') : !(Array.isArray(name) && name[0] === 'Subscript'))
-        return { invalid: 'assign' };
+      if (typeof name !== 'string') return { invalid: Array.isArray(name) && name[0] === 'Subscript' ? 'subscript' : 'assign' };
+      if (!assignable(name) || !params.every(p => typeof p === 'string')) return { invalid: 'assign' };
     }
     // Unknowns are checked before evaluate(): letters assigned on earlier lines are already known.
     // For a := line, only its right-hand side counts (the letter being assigned is new).

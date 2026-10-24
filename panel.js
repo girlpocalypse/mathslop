@@ -235,6 +235,10 @@
     hist.change(() => { row.remove(); renumber(); schedule(); return focusField(prev.querySelector('math-field'), wasPrev ? 'end' : 'start'); });
   }
 
+  // MathLive's inline shortcuts that turn letters a student types as a product (g·t, n·n, f·t) into
+  // symbols this pad isn't for: comparisons, set and logic signs, units, non-English function names.
+  const NO_SHORTCUT = new Set(('lt gt vv vvv nn nnn uu uuu of in xin and or not sub sup sube supe iff prop ' +
+    'mm cm km kg ft mi inch ch sh th tg lb cth ctg cotg').split(' '));
   function makeRow(latex = ''){
     const row = document.createElement('div'); row.className = 'row';
     const num = document.createElement('div'); num.className = 'num';
@@ -246,7 +250,7 @@
     // keybindings and inlineShortcuts throw until the field is mounted.
     mf.addEventListener('mount', () => {
       mf.keybindings = mf.keybindings.filter(k => !['speak', 'undo', 'redo'].includes([].concat(k.command)[0]));
-      mf.inlineShortcuts = { ...mf.inlineShortcuts, ans: '\\mathrm{ans}' };
+      mf.inlineShortcuts = { ...Object.fromEntries(Object.entries(mf.inlineShortcuts).filter(([k]) => !NO_SHORTCUT.has(k))), ans: '\\mathrm{ans}' };
     });
     mf.value = latex;
     const res = document.createElement('div'); res.className = 'res';
@@ -501,7 +505,8 @@
 
   const INVALID_TIP = {
     'missing': 'Something is missing, like an empty box.',
-    'assign': 'Only a letter (x := 5) or a function (f(x) := …) can be given a value.',
+    'assign': 'Only a letter (x := 5) or a function (f(x) := …) can be given a value, not e, i, π, γ, φ or a name like sin.',
+    'subscript': 'A name with a subscript (x₁, v₀) can\'t be given a value. Use a plain letter instead.',
     'unexpected-operator': 'An operator is missing a number on one side.',
     'unexpected-command': 'This uses a command the engine doesn\'t know.',
     'unexpected-delimiter': 'A bracket isn\'t matched.',
