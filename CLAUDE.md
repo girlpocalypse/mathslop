@@ -233,8 +233,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 
 ## Tests
 
-No dependencies: Node ≥ 22.8 (`node:test`, built-in coverage) and Chromium. Branded Chrome no longer accepts
-`--load-extension`; Chromium and Chrome for Testing do (`CHROMIUM=/path` picks the binary).
+No dependencies: Node ≥ 22.8 (`node:test`, built-in coverage) and Chromium or Chrome for Testing. Branded
+Chrome no longer accepts `--load-extension`; those two do (`CHROMIUM=/path` picks the binary).
 
 ```
 npm run test:engine   sandbox.js and background.js in Node (vm), gated at 100% lines, branches, functions
@@ -260,6 +260,13 @@ npm run test:zip      builds dist/mathslop-<version>-tests.zip from a temp copy 
 - **Timing.** Code that a test stubs time for must call `Date.now()` when it runs, not capture it at load.
   Trusted keys sent less than ~60 ms after Enter or Backspace can land in the wrong line (a known issue), so
   the drivers leave realistic gaps.
+- **CI**: `.github/workflows/test.yml` runs `npm run coverage` and `npm run test:zip` on pushes to main, on
+  pull requests and weekly, with the latest **stable** Chrome for Testing from `@puppeteer/browsers` (downloaded
+  on the runner, not a dependency). The target is always Chrome stable, because that's what users have (Chrome
+  updates itself): a red weekly run with no code change is a real compatibility bug, not CI noise. Schedules
+  only run from the default branch, and GitHub turns a public repo's scheduled workflows off after 60 days with
+  no repository activity; then re-enable it from the Actions tab. `CHROMIUM_FLAGS` passes extra flags
+  (`--no-sandbox` there), and `CHROMIUM_LOG=dir` keeps each browser's stderr.
 - **Never** let a test write or delete `dist/mathslop-<version>.zip`: test builds use `package.sh --suffix tests`.
   Test work doesn't bump the version or add a CHANGELOG entry.
 
