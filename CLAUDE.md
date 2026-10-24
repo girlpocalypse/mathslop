@@ -17,14 +17,16 @@ Rough priority order.
       a variable; single-letter units (m, s, g, h) can't be told apart from variables while typing; CE's `\to`
       doesn't convert (`\operatorname{UnitConvert}` does); exact unit answers come out as siunitx `\qty[…]`,
       which MathLive can't render; and unit names count as unknowns, so Arithmetic skips unit lines.
-4. **Hostile-input and fuzz testing.** Paste and import LaTeX built to exploit MathLive's renderer (`\href`,
-      `\htmlData`, `\enclose`, `\class`, colors and borders, deep nesting, huge input) and check that nothing
-      runs, no link or restyling escapes the line, and the panel doesn't hang. The CSP blocks inline scripts
-      and all network, so the realistic risk is cosmetic or a self-inflicted hang. Also fuzz the engine
-      (generated and mutated lines through sandbox.js in Node: no escaped exceptions, no stuck job, "=" decimals
-      really exact) and the panel (random keys, clicks, pastes and imports: no console errors, undo/redo round
-      trips, settings survive a restart). Check the `chrome.storage.local` quota too: a huge import's failed
-      save is swallowed silently in `store.save`.
+4. **Hostile-input and fuzz findings** (`npm run fuzz`, test/fuzz/; first runs on 1.3.0). Nothing ran, navigated or
+      reached the network for any payload. Open:
+      - `\htmlStyle{position:fixed;inset:0;…}{x}` in a line covers the whole panel, header included, and
+        `position:absolute;top:-500px` moves a line's content out of its row (cosmetic: a pasted line can hide the UI).
+      - 300 nested `\sqrt{…}` hang the panel itself (MathLive's rendering, > 60 s).
+      - `\href{javascript:…}` and a 200 000-character line throw into the console (MathLive "Invalid URL", stack
+        overflow); the panel survives both.
+      - A save that doesn't fit `chrome.storage.local` (10 MB) is an unhandled `kQuotaBytes` error from `store.save`,
+        and the pad isn't saved.
+      The engine fuzzer and the monkey test found nothing over several seeds.
 5. **Tests on the latest LTS Node in CI.** The tests workflow (PR #12) runs them on Node 22, the `engines`
       minimum in package.json. Node is used only by the tests (the extension runs in Chrome, packaging is bash),
       so no one is stuck on an old version: `node-version: 'lts/*'` would follow the newest LTS the way
@@ -242,6 +244,7 @@ npm run test:browser  the panel in headless Chromium: panel-*.test.mjs (through 
 npm test              both
 npm run coverage      the above, plus browser coverage of panel.js per future module (test/tools/coverage.mjs)
 npm run test:zip      builds dist/mathslop-<version>-tests.zip from a temp copy and checks it against the release
+npm run fuzz          optional: engine fuzzing, hostile LaTeX, a monkey test, the storage quota (FUZZ_SEED, FUZZ_ITERATIONS)
 ```
 
 - **Test hooks.** `sandbox.js` and `panel.js` each end with one statement that exports their internals when

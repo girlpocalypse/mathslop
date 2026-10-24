@@ -2,7 +2,9 @@
   "name": "mathslop-tests",
   "private": true,
   "description": "Tests for the mathslop extension. No dependencies; not shipped (scripts/package.sh copies only its allowlist).",
-  "engines": { "node": ">=22.8" },
+  "engines": {
+    "node": ">=22.8"
+  },
   "scripts": {
     "test": "npm run test:engine && npm run test:browser",
     "test:engine": "node test/tools/run-engine.mjs",
@@ -10,6 +12,7 @@
     "test:panel": "node --test --test-concurrency=3 test/browser/panel-*.test.mjs",
     "test:e2e": "node --test --test-concurrency=3 test/browser/e2e-*.test.mjs",
     "test:zip": "node --test test/browser/zip.test.mjs",
-    "coverage": "npm run test:engine && node -e \"require('fs').rmSync('coverage/browser',{recursive:true,force:true})\" && MATHSLOP_COVERAGE=1 npm run test:browser && node test/tools/coverage.mjs"
+    "coverage": "npm run test:engine && node -e \"require('fs').rmSync('coverage/browser',{recursive:true,force:true})\" && MATHSLOP_COVERAGE=1 npm run test:browser && node test/tools/coverage.mjs",
+    "fuzz": "node test/fuzz/engine.fuzz.mjs && node test/fuzz/browser.fuzz.mjs"
   }
 }
