@@ -18,7 +18,10 @@ export function useBrowser(opts = {}){
 
 // A panel tab with the given saved state ({ lines, mode, … } or null for a first run). Fails the test on
 // any console error, exception or CSP violation unless allowErrors.
-export async function panel(t, ctx, saved = { lines: [''], mode: 'off' }, { hook = false, allowErrors = false, before } = {}){
+export async function panel(t, ctx, saved = { lines: [''], mode: 'off' }, { hook = false, allowErrors = false, before = '', fake } = {}){
+  // fake: replace the engine frame with test/browser/fake-engine.html before it loads ({ auto: false } to keep it quiet)
+  if (fake) before += `;new MutationObserver((ms, o) => { const f = document.getElementById('engine');
+    if (f) { f.src = 'test/browser/fake-engine.html${fake.auto === false ? '?auto=0' : ''}'; o.disconnect(); } }).observe(document, { childList: true, subtree: true });`;
   const p = await ctx.b.openPanel({ hook, before });
   p.coverageName = t.name.replace(/\W+/g, '-').slice(0, 40);
   await p.ready();
