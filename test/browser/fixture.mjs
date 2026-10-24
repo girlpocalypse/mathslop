@@ -40,8 +40,7 @@ export const answers = p => p.run(() => [...document.querySelectorAll('.row .res
 export const toastText = p => p.run(() => { const t = document.getElementById('toast'); return t.classList.contains('show') ? t.firstChild?.textContent || t.textContent : ''; });
 export const savedState = p => storage(p, 'get');
 
-// chrome.storage.local from the page. Through callbacks: a promise awaited by CDP's Runtime.evaluate comes
-// back as {} for these extension calls, so the result is left in a global and polled.
+// chrome.storage.local from the page, through callbacks, the result left in a global and polled.
 export async function storage(p, op, value){
   const tag = '__st' + Math.random().toString(36).slice(2);
   await p.run((S, op, key, value, tag) => {

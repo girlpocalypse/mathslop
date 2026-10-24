@@ -7,6 +7,9 @@ import path from 'node:path';
 
 export function chromiumPath(){
   if (process.env.CHROMIUM) return process.env.CHROMIUM;
+  // The real binary, not the distribution's launcher: Arch's `chromium` adds the flags (and extensions) from
+  // ~/.config/chromium-flags.conf, which would leak the user's desktop setup into the tests.
+  for (const f of ['/usr/lib/chromium/chromium', '/usr/lib/chromium-browser/chromium-browser']) if (fs.existsSync(f)) return f;
   for (const name of ['chromium', 'chromium-browser']) {
     const r = spawnSync('sh', ['-c', `command -v ${name}`], { encoding: 'utf8' });
     if (r.status === 0 && r.stdout.trim()) return r.stdout.trim();

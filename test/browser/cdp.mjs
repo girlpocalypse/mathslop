@@ -66,6 +66,7 @@ export class Browser {
     const id = await this.extensionId();
     const t = (await this.targets()).find(t => t.type === 'service_worker' && t.url.includes(id));
     const { sessionId } = await this.send('Target.attachToTarget', { targetId: t.targetId, flatten: true });
+    await this.send('Runtime.runIfWaitingForDebugger', {}, sessionId);
     return new Session(this, sessionId, t);
   }
   // A new tab at url (default: the panel), paused until prepare(session) has run.
@@ -107,9 +108,9 @@ export class Browser {
       }
     });
   }
-  async close(){
+  async close(opts){
     try { this.ws.close(); } catch {}
-    await this.chrome.close();
+    await this.chrome.close(opts);
   }
 }
 
@@ -117,7 +118,7 @@ class Session {
   constructor(browser, sessionId, info){ this.b = browser; this.sessionId = sessionId; this.info = info; this.log = []; this.net = []; }
   send(method, params){ return this.b.send(method, params, this.sessionId); }
   async eval(expression){
-    const r = await this.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true, replMode: true });
+    const r = await this.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true });   // not replMode: it hangs or empties extension-API promises
     if (r.exceptionDetails) throw new Error('in page: ' + (r.exceptionDetails.exception?.description || r.exceptionDetails.text));
     return r.result.value;
   }
