@@ -1,0 +1,74 @@
+// One Chromium per test file, a fresh panel per test. State is set the way a user's would be: saved
+// settings in chrome.storage.local, then a reload (CLAUDE.md "Tests", rule: public controls only).
+import { before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { Browser } from './cdp.mjs';
+
+export const sleep = ms => new Promise(r => setTimeout(r, ms));
+export const KEY = 'mathslop.v1';
+
+export function useBrowser(opts = {}){
+  const ctx = { b: null };
+  before(async () => { ctx.b = await Browser.start(opts); });
+  after(async () => { await ctx.b?.close(); });
+  return ctx;
+}
+
+// A panel tab with the given saved state ({ lines, mode, … } or null for a first run). Fails the test on
+// any console error, exception or CSP violation unless allowErrors.
+export async function panel(t, ctx, saved = { lines: [''], mode: 'off' }, { hook = false, allowErrors = false, before } = {}){
+  const p = await ctx.b.openPanel({ hook, before });
+  p.coverageName = t.name.replace(/\W+/g, '-').slice(0, 40);
+  await p.ready();
+  await storage(p, saved === null ? 'remove' : 'set', saved);
+  await p.reload();
+  await p.ready();
+  t.after(async () => {
+    const errs = p.errors();
+    await p.close();
+    if (!allowErrors) assert.deepEqual(errs, [], 'console errors');
+  });
+  return p;
+}
+
+// ---- reading the pad (no hook needed) ----
+export const values = p => p.run(() => [...document.querySelectorAll('.row math-field')].map(f => f.value));
+export const focused = p => p.run(() => [...document.querySelectorAll('.row math-field')].indexOf(document.activeElement));
+// Each row's answer as shown: "= 5 ≈ 1.41", "[can't read]", "[took too long]" or ''.
+export const answers = p => p.run(() => [...document.querySelectorAll('.row .res')].map(r =>
+  r.querySelector('.mark') ? '[' + r.textContent.trim() + ']' : [...r.querySelectorAll('.part')].map(x => x.textContent.replace(/\s+/g, ' ').replace(/​/g, '').trim()).join(' | ')));
+export const toastText = p => p.run(() => { const t = document.getElementById('toast'); return t.classList.contains('show') ? t.firstChild?.textContent || t.textContent : ''; });
+export const savedState = p => storage(p, 'get');
+
+// chrome.storage.local from the page. Through callbacks: a promise awaited by CDP's Runtime.evaluate comes
+// back as {} for these extension calls, so the result is left in a global and polled.
+export async function storage(p, op, value){
+  const tag = '__st' + Math.random().toString(36).slice(2);
+  await p.run((S, op, key, value, tag) => {
+    const done = v => { globalThis[tag] = { v: v === undefined ? null : v }; };
+    if (op === 'get') chrome.storage.local.get(key, o => done(o[key]));
+    else if (op === 'remove') chrome.storage.local.remove(key, () => done(null));
+    else chrome.storage.local.set({ [key]: value }, () => done(null));
+  }, op, KEY, value ?? null, tag);
+  return (await p.waitFor((S, tag) => globalThis[tag], { args: [tag], what: 'chrome.storage' })).v;
+}
+
+// Waits until the answers have stopped changing (debounce 220 ms + engine).
+export async function settled(p, { quiet = 500, timeout = 8000 } = {}){
+  const t0 = Date.now(); let last = JSON.stringify(await answers(p)), since = Date.now();
+  while (Date.now() - t0 < timeout) {
+    await sleep(80);
+    const now = JSON.stringify(await answers(p));
+    if (now !== last) { last = now; since = Date.now(); }
+    else if (Date.now() - since >= quiet) return JSON.parse(now);
+  }
+  return JSON.parse(last);
+}
+
+// Click into line i (0-based), then put the caret at its end (or start). The middle of the field: its right
+// edge is the line's ☰ toggle.
+export async function clickLine(p, i, where = 'end'){
+  await p.click(`js:document.querySelectorAll('.row math-field')[${i}]`, { dx: 0.3 });
+  await sleep(60);
+  await p.key(where === 'end' ? 'End' : 'Home');
+}
