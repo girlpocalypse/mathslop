@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npm run test:engine && npm run test:browser",
     "test:engine": "node test/tools/run-engine.mjs",
-    "test:browser": "node --test --test-concurrency=3 test/browser/panel-*.test.mjs test/browser/e2e-*.test.mjs",
+    "test:browser": "node --test --test-concurrency=${TEST_CONCURRENCY:-3} test/browser/panel-*.test.mjs test/browser/e2e-*.test.mjs",
     "test:panel": "node --test --test-concurrency=3 test/browser/panel-*.test.mjs",
     "test:e2e": "node --test --test-concurrency=3 test/browser/e2e-*.test.mjs",
     "test:zip": "node --test test/browser/zip.test.mjs",

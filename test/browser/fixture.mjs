@@ -26,7 +26,14 @@ export async function panel(t, ctx, saved = { lines: [''], mode: 'off' }, { hook
   const p = await ctx.b.openPanel({ hook, before });
   p.coverageName = t.name.replace(/\W+/g, '-').slice(0, 40);
   await p.ready();
+  // The panel saves its own state 220 ms after it boots: let that happen first, or on a slow machine it lands
+  // after ours and the reload shows the old pad.
+  await sleep(400);
   await storage(p, saved === null ? 'remove' : 'set', saved);
+  if (!before.includes('chrome.storage')) {   // (a test that breaks chrome.storage on purpose can't read it back)
+    const back = await storage(p, 'get');
+    try { assert.deepEqual(back, saved); } catch { throw new Error('the test\'s pad state did not stick: ' + JSON.stringify(back)); }
+  }
   await p.reload();
   await p.ready();
   t.after(async () => {
@@ -87,6 +94,7 @@ export function sharedPanel(ctx, saved = { lines: [''], mode: 'off' }){
     sp.p = await ctx.b.openPanel({ hook: true });
     sp.p.coverageName = 'shared';
     await sp.p.ready();
+    await sleep(400);   // after the panel's own first save (see panel())
     await storage(sp.p, 'set', saved);
     await sp.p.reload(); await sp.p.ready();
     await sp.p.waitFor(() => globalThis.S?.ready, { what: 'the test hook' });

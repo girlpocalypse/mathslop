@@ -45,9 +45,9 @@ export async function launch({ ext, profile, args = [] } = {}){
     async close({ keepProfile = !!profile } = {}){
       if (proc.exitCode === null) {
         proc.kill('SIGTERM');
-        await new Promise(r => { proc.once('exit', r); setTimeout(r, 5000); });
+        await new Promise(r => { proc.once('exit', r); setTimeout(() => { proc.kill('SIGKILL'); r(); }, 5000); });
       }
-      if (!keepProfile) fs.rmSync(dir, { recursive: true, force: true });
+      if (!keepProfile) fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });   // Chromium may still be writing
     }
   };
 }
