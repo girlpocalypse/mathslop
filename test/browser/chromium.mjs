@@ -34,7 +34,9 @@ export async function launch({ ext, profile, args = [] } = {}){
     ...args, 'about:blank'
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '';
-  proc.stderr.on('data', d => { stderr += d; if (stderr.length > 20000) stderr = stderr.slice(-10000); });
+  // CHROMIUM_LOG=dir: keep each browser's stderr in dir (CI uploads it)
+  const log = process.env.CHROMIUM_LOG && (fs.mkdirSync(process.env.CHROMIUM_LOG, { recursive: true }), fs.createWriteStream(path.join(process.env.CHROMIUM_LOG, `${path.basename(dir)}.log`)));
+  proc.stderr.on('data', d => { log?.write(d); stderr += d; if (stderr.length > 20000) stderr = stderr.slice(-10000); });
   const t0 = Date.now();
   while (!fs.existsSync(portFile) || fs.readFileSync(portFile, 'utf8').split('\n').length < 2) {
     if (proc.exitCode !== null) throw new Error('Chromium exited: ' + stderr.slice(-2000));

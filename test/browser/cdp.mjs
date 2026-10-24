@@ -223,7 +223,8 @@ export class Page extends Session {
   // The panel has booted: rows rendered, every line's math-field mounted, fonts loaded.
   async ready(){
     await this.waitFor(() => document.querySelector('.row') && [...document.querySelectorAll('.row math-field')].every(f => f.shadowRoot?.querySelector('.ML__container'))
-      && document.fonts.status === 'loaded', { what: 'the panel to boot', timeout: 10000 });
+      && document.fonts.status === 'loaded', { what: 'the panel to boot', timeout: 10000 })
+      .catch(e => { throw new Error(e.message + '; console: ' + JSON.stringify(this.log.slice(-8))); });
     await sleep(150);
   }
   async goto(url){

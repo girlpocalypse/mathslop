@@ -16,16 +16,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.x'
-      # Chromium, not branded Chrome: Chrome no longer accepts --load-extension. A CI-time download, not a
-      # project dependency.
-      - name: Install Chromium
+      # Chrome for Testing, not branded Chrome: Chrome no longer accepts --load-extension, Chrome for Testing
+      # (and Chromium) still do. Pinned so CI doesn't change under us; a CI-time download, not a dependency.
+      - name: Install Chrome for Testing
         run: |
-          out=$(npx --yes @puppeteer/browsers@2 install chromium@latest --path "$RUNNER_TEMP/browsers")
+          out=$(npx --yes @puppeteer/browsers@2 install chrome@156.0.8078.47 --path "$RUNNER_TEMP/browsers")
+          echo "$out"
           echo "CHROMIUM=$(echo "$out" | tail -1 | awk '{print $2}')" >> "$GITHUB_ENV"
       - run: sudo apt-get update && sudo apt-get install -y zip
+      - name: What the test browser sees
+        run: node test/tools/diagnose-browser.mjs
+        env:
+          CHROMIUM_FLAGS: --no-sandbox
+          CHROMIUM_LOG: coverage/chromium
       - run: npm run coverage
         env:
           CHROMIUM_FLAGS: --no-sandbox   # Ubuntu runners restrict the user namespaces Chromium's sandbox needs
+          CHROMIUM_LOG: coverage/chromium   # each browser's stderr, uploaded with coverage/
       - run: npm run test:zip
         env:
           CHROMIUM_FLAGS: --no-sandbox
