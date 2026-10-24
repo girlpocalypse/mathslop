@@ -32,7 +32,7 @@ export async function launch({ ext, profile, args = [] } = {}){
     // CHROMIUM_FLAGS: extra flags for this machine, e.g. --no-sandbox on CI runners without user namespaces
     ...(process.env.CHROMIUM_FLAGS || '').split(/\s+/).filter(Boolean),
     ...args, 'about:blank'
-  ], { stdio: ['ignore', 'ignore', 'pipe'] });
+  ], { stdio: ['ignore', 'ignore', 'pipe'], detached: true });   // its own process group: close() ends the helpers too
   let stderr = '';
   // CHROMIUM_LOG=dir: keep each browser's stderr in dir (CI uploads it)
   const log = process.env.CHROMIUM_LOG && (fs.mkdirSync(process.env.CHROMIUM_LOG, { recursive: true }), fs.createWriteStream(path.join(process.env.CHROMIUM_LOG, `${path.basename(dir)}.log`)));
@@ -47,11 +47,16 @@ export async function launch({ ext, profile, args = [] } = {}){
   return {
     port: +port, wsUrl: `ws://127.0.0.1:${port}${wsPath}`, profile: dir, proc,
     async close({ keepProfile = !!profile } = {}){
+      const group = sig => { try { process.kill(-proc.pid, sig); } catch {} };
       if (proc.exitCode === null) {
-        proc.kill('SIGTERM');
-        await new Promise(r => { proc.once('exit', r); setTimeout(() => { proc.kill('SIGKILL'); r(); }, 5000); });
+        group('SIGTERM');
+        await new Promise(r => { proc.once('exit', r); setTimeout(() => { group('SIGKILL'); r(); }, 5000); });
       }
-      if (!keepProfile) fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });   // Chromium may still be writing
+      group('SIGKILL');   // helper processes that outlive the browser would keep writing to the profile
+      if (!keepProfile) {
+        try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); }
+        catch (e) { console.warn(`could not remove the test profile ${dir}: ${e.code}`); }   // a leftover temp dir isn't a test failure
+      }
     }
   };
 }
