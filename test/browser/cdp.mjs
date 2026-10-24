@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launch } from './chromium.mjs';
+import { PANEL } from '../modules.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -103,7 +104,7 @@ export class Browser {
       if (coverage) { await p.send('Profiler.enable'); await p.send('Profiler.startPreciseCoverage', { callCount: true, detailed: true }); p.coverage = true; }
       if (before) await p.send('Page.addScriptToEvaluateOnNewDocument', { source: before });
       if (hook) {
-        await p.send('Page.addScriptToEvaluateOnNewDocument', { source: 'globalThis.__mathslopTest = {};' });
+        await p.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__mathslopTest = {}; globalThis.__mathslopModules = ${JSON.stringify(PANEL)};` });
         await p.send('Page.addScriptToEvaluateOnNewDocument', { source: fs.readFileSync(path.join(ROOT, 'test/browser/subjects.js'), 'utf8') });
       }
     });

@@ -9,7 +9,9 @@ export const KEY = 'mathslop.v1';
 
 export function useBrowser(opts = {}){
   const ctx = { b: null };
-  before(async () => { ctx.b = await Browser.start(opts); });
+  let started;
+  ctx.started = () => started ??= Browser.start(opts).then(b => { ctx.b = b; return b; });
+  before(() => ctx.started());
   after(async () => { await ctx.b?.close(); });
   return ctx;
 }
@@ -70,4 +72,20 @@ export async function clickLine(p, i, where = 'end'){
   await p.click(`js:document.querySelectorAll('.row math-field')[${i}]`, { dx: 0.3 });
   await sleep(60);
   await p.key(where === 'end' ? 'End' : 'Home');
+}
+
+// One hooked panel for a whole file of pure-function tables (they don't change the pad).
+export function sharedPanel(ctx, saved = { lines: [''], mode: 'off' }){
+  const sp = { p: null };
+  before(async () => {
+    await ctx.started();
+    sp.p = await ctx.b.openPanel({ hook: true });
+    sp.p.coverageName = 'shared';
+    await sp.p.ready();
+    await storage(sp.p, 'set', saved);
+    await sp.p.reload(); await sp.p.ready();
+    await sp.p.waitFor(() => globalThis.S?.ready, { what: 'the test hook' });
+  });
+  after(async () => { const errs = sp.p?.errors() || []; await sp.p?.close(); assert.deepEqual(errs, [], 'console errors'); });
+  return sp;
 }

@@ -821,4 +821,11 @@
   setAngle(angle);
   setMode(mode);
   hist.reset();
+
+  // Tests only (test/browser/cdp.mjs defines this global before panel.js runs; nothing in the extension does).
+  if (globalThis.__mathslopTest) globalThis.__mathslopTest.panel = { KEY, SAMPLE, PLACES, store, portable, spoken, isSum,
+    toText, parseImport, answerParts, prettyLatex, prettyCap, spokenKey, colorFor, hist, WATCHDOG_MS, inflight, slowKeys,
+    lineKey, lineResult, INVALID_TIP, SLOW_TIP, MODIFIERS, NO_SHORTCUT, ansOut,
+    get mode(){ return mode; }, get order(){ return order; }, get engine(){ return engine; }, get reqId(){ return reqId; },
+    get lastField(){ return lastField; }, get pendingRow(){ return pendingRow; } };
 })();

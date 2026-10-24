@@ -99,3 +99,57 @@ export function topLevelNames(src){
   }
   return names;
 }
+
+export const PANEL = {
+  // settings
+  KEY: ['settings', 'hook'], SAMPLE: ['settings', 'hook'], PLACES: ['settings', 'hook'], store: ['settings', 'hook'],
+  hasChromeStorage: ['settings', 'via the file:// fallback test'], saved: ['settings', 'via store + reload'],
+  mode: ['settings', 'hook'], angle: ['settings', 'via the Rad/Deg buttons'], places: ['settings', 'via the Decimals select'],
+  order: ['settings', 'hook'], copyFmt: ['settings', 'via the Copy all dialog'], copyAns: ['settings', 'via the Copy all dialog'],
+  persist: ['settings', 'via store after the debounce'],
+  // latex
+  portable: ['latex', 'hook'], spoken: ['latex', 'hook'], isSum: ['latex', 'hook'], toText: ['latex', 'hook'],
+  parseImport: ['latex', 'hook'], answerParts: ['latex', 'hook'], exportText: ['latex', 'via the Copy all dialog'],
+  // keycaps
+  prettyLatex: ['keycaps', 'hook'], prettyCap: ['keycaps', 'hook'], spokenKey: ['keycaps', 'hook'],
+  // colors
+  varColors: ['colors', 'via the Colors button'], VAR_ORDER: ['colors', 'via colorFor'], VAR_PALETTE: ['colors', 'via colorFor'],
+  colorFor: ['colors', 'hook'], paint: ['colors', 'via the Colors button'], painted: ['colors', 'via watch'],
+  watch: ['colors', 'via editing a colored line'], paintAll: ['colors', 'via the Colors button'],
+  // history
+  hist: ['history', 'hook'],
+  // bridge
+  WATCHDOG_MS: ['bridge', 'hook'], engine: ['bridge', 'hook'], engineReady: ['bridge', 'via the status line'],
+  reqId: ['bridge', 'hook'], dog: ['bridge', 'via the watchdog cases'], busy: ['bridge', 'via the watchdog cases'],
+  inflight: ['bridge', 'hook'], slowKeys: ['bridge', 'hook'], lineKey: ['bridge', 'hook'], lineResult: ['bridge', 'hook'],
+  hookEngine: ['bridge', 'via the watchdog restart'], armDog: ['bridge', 'via the watchdog cases'], hung: ['bridge', 'via the watchdog cases'],
+  evaluateAll: ['bridge', 'via the fake engine'], t: ['bridge', 'via the debounce'], schedule: ['bridge', 'via the debounce'],
+  // answers
+  INVALID_TIP: ['answers', 'hook'], SLOW_TIP: ['answers', 'hook'], resultOf: ['answers', 'via clicking an answer'],
+  toMarkup: ['answers', 'via showResult'], showResult: ['answers', 'via the fake engine'],
+  applyResults: ['answers', 'via the fake engine'], clearResults: ['answers', 'via answers Off'],
+  // toast
+  toastEl: ['toast', 'via #toast'], toastT: ['toast', 'via the toast durations'], toast: ['toast', 'via #toast'],
+  hideToast: ['toast', 'via the toast\'s Undo'], dropUndoToast: ['toast', 'via a later step'], undoToast: ['toast', 'via ×, clear, import'],
+  copyText: ['toast', 'via tex / Shift+click / Copy all'], menuBlocks: ['toast', 'via a line menu'],
+  // focus
+  lastField: ['focus', 'hook'], tabNav: ['focus', 'via Tab'], MODIFIERS: ['focus', 'hook'], clickedField: ['focus', 'via clicks'],
+  pendingRow: ['focus', 'hook'], lineAt: ['focus', 'via a held Enter'], activeRow: ['focus', 'via the on-screen ↵'],
+  // pad
+  $: ['pad', 'via everything'], pad: ['pad', 'via #pad'], statusEl: ['pad', 'via #status'], rows: ['pad', 'via .row'],
+  fields: ['pad', 'via math-field'], NO_SHORTCUT: ['pad', 'hook'], makeRow: ['pad', 'via setLines'], ansOut: ['pad', 'hook'],
+  forgetTyping: ['pad', 'via undo, then a shortcut'], lineMenuOpen: ['pad', 'via a line menu'], focusField: ['pad', 'via arrows'],
+  focusIn: ['pad', 'via Enter'], insertAfter: ['pad', 'via Enter'], renumber: ['pad', 'via line numbers'], addBtn: ['pad', 'via + add line'],
+  setLines: ['pad', 'via import'], newLineAfter: ['pad', 'via Enter'], removeEmptyRow: ['pad', 'via Backspace'], useAnswer: ['pad', 'via clicking an answer'],
+  // controls
+  MODE_HINT: ['controls', 'via #modehint'], segBtns: ['controls', 'via the mode buttons'], setMode: ['controls', 'via the mode buttons'],
+  ansDlg: ['controls', 'via #ans-warn'], ansPending: ['controls', 'via #ans-warn'], requestMode: ['controls', 'via the mode buttons'],
+  angleBtns: ['controls', 'via Rad/Deg'], placesSel: ['controls', 'via Decimals'], orderSel: ['controls', 'via the order select'],
+  setAngle: ['controls', 'via Rad/Deg'], bCol: ['controls', 'via Colors'], setColors: ['controls', 'via Colors'], bKbd: ['controls', 'via Keyboard'],
+  kbdFrom: ['controls', 'via Keyboard'], menu: ['controls', 'via ☰'], bMenu: ['controls', 'via ☰'], openMenu: ['controls', 'via ☰'],
+  menuAction: ['controls', 'via the ☰ menu'], clearAll: ['controls', 'via Clear pad / Esc Esc'], keysDlg: ['controls', 'via Ctrl+/'],
+  dlg: ['controls', 'via Import'], imp: ['controls', 'via Import'], expDlg: ['controls', 'via Copy all'], expText: ['controls', 'via Copy all'],
+  expAns: ['controls', 'via Copy all'], fmtBtns: ['controls', 'via Copy all'], renderExport: ['controls', 'via Copy all'],
+  undoRedo: ['controls', 'via Ctrl+Z'], vkSwallow: ['controls', 'via the on-screen ↵'], vkPress: ['controls', 'via the on-screen ↵'],
+  vkKey: ['controls', 'via the on-screen ↵'], escArmed: ['controls', 'via Esc Esc'], menuEscAt: ['controls', 'via Esc in a line menu'],
+};
