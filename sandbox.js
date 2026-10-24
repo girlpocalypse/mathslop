@@ -314,4 +314,9 @@
   });
 
   hello();
+
+  // Tests only (test/engine/load.mjs defines this global; nothing in the extension does).
+  if (globalThis.__mathslopTest) globalThis.__mathslopTest.engine = { PRECISION, MAX_EXACT_NUMBER, REL, norm, key, tidy,
+    numOf, intOf, rationalOf, sameRational, exactPlaces, grouped, fixed, sci, sciFloat, sciNum, floatDigits, floatParts,
+    exactValue, decimal, parseError, libraryHas, GREEK, CONSTANTS, assignable, evalLine };
 })();

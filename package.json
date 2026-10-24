@@ -1,0 +1,10 @@
+{
+  "name": "mathslop-tests",
+  "private": true,
+  "description": "Tests for the mathslop extension. Not shipped: scripts/package.sh copies only its allowlist.",
+  "engines": { "node": ">=22.8" },
+  "scripts": {
+    "test": "npm run test:engine",
+    "test:engine": "node test/tools/run-engine.mjs"
+  }
+}
