@@ -32,6 +32,21 @@ describe('inserting an answer', () => {
     await p.key('Enter'); await sleep(150);
     assert.deepEqual(await values(p), ['58', '7+1'], 'into line 1, where the caret was');
   });
+  test('arrow keys in a line reached by Tab make it the line edited (r4-5)', async t => {
+    const p = await panel(t, ctx, { lines: ['1+1', 'xy'], mode: 'arith' });
+    await settled(p);
+    await clickLine(p, 0);
+    for (let k = 0; k < 4; k++) { await p.key('Tab'); await sleep(50); }   // answer, tex, ×, line 2
+    assert.equal(await focused(p), 1);
+    await p.key('End'); await p.key('ArrowLeft'); await sleep(60);
+    await clickAnswer(p, 0); await sleep(200);
+    assert.deepEqual(await values(p), ['1+1', 'x2y']);
+  });
+  test('an upright name keeps what is typed after it outside', { todo: 'r9-7: \\mathrm{word} absorbs a following · or ^' }, async t => {
+    const p = await panel(t, ctx, { lines: [''], mode: 'off' });
+    await clickLine(p, 0); await p.type('\\mathrm{mass}'); await p.key('Escape'); await p.type('*4'); await sleep(100);   // the QA repro
+    assert.equal((await values(p))[0], '\\mathrm{mass}\\cdot4');
+  });
   test('a click on a line\'s padding doesn\'t count; the line keeps no focus', async t => {
     const p = await panel(t, ctx, { lines: ['1+2', 'x'], mode: 'arith' });
     await settled(p);

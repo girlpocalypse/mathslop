@@ -77,6 +77,30 @@ describe('on-screen keyboard', () => {
     await press(p, 'moveToNextChar'); await sleep(250);
     assert.equal(await focused(p), 1);
   });
+  test('typing with the on-screen keyboard makes that line the one an answer goes into, at its caret (r3-4)', async t => {
+    const p = await panel(t, ctx, { lines: ['1+1', 'x', 'y'], mode: 'arith' });
+    await open(p, 2);
+    await clickLine(p, 1, 'start');
+    await press(p, 'moveToNextChar'); await sleep(150);   // caret after x, from the keyboard
+    await p.click(`js:document.querySelectorAll('.row .res')[0].querySelector('.part')`); await sleep(200);
+    assert.deepEqual(await values(p), ['1+1', 'x2', 'y']);
+  });
+  test('keys are relabelled for screen readers once each: no raw LaTeX or entities (r9-2)', async t => {
+    const p = await panel(t, ctx, { lines: [''], mode: 'off' });
+    await open(p);
+    const bad = await p.run(() => [...document.querySelectorAll('.ML__keyboard [aria-label]')].filter(k => k.getBoundingClientRect().width)
+      .map(k => [k.getAttribute('aria-label'), 'said' in k.dataset]).filter(([l, said]) => !said || /#@|#\?|&[a-z]+;|\\[a-z]/i.test(l)));
+    assert.deepEqual(bad, []);
+  });
+  test('with a line menu open, the keyboard\'s undo does nothing (r2-4)', async t => {
+    const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });
+    await open(p); await p.type('2'); await sleep(150);
+    const [x, y] = await p.point('js:document.querySelector(".row math-field")', { dx: 0.3 });
+    await p.mouse('mouseMoved', x, y); await p.mouse('mousePressed', x, y, { button: 'right' }); await p.mouse('mouseReleased', x, y, { button: 'right' }); await sleep(250);
+    await p.run(() => [...document.querySelectorAll('.ML__keyboard [data-command]')].find(k => k.dataset.command === '"undo"' && k.getBoundingClientRect().width).click());
+    await sleep(150);
+    assert.deepEqual(await values(p), ['12']);
+  });
   test('a quick ↵ double tap ends on the last new line; ⌫ right after ↵ removes it', async t => {
     const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });
     await open(p);

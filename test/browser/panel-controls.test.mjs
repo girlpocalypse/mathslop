@@ -95,6 +95,10 @@ describe('Copy all…', () => {
     await open(p); await p.click('#exp [data-fmt=text]');
     assert.equal(await text(p), 'e^{x}');
   });
+  test('the Copy button is a plain button, not a toggle (review-19)', async t => {
+    const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });
+    assert.equal(await p.run(() => document.getElementById('exp-copy').hasAttribute('aria-pressed')), false);
+  });
   test('with answers Off there are none to include', async t => {
     const p = await panel(t, ctx, { lines: ['1+1'], mode: 'off' });
     await open(p);
@@ -126,6 +130,26 @@ describe('Keyboard button', () => {
     await clickLine(p, 1);
     await p.click('#btn-kbd'); await sleep(400);
     assert.equal(await focused(p), 1);
+  });
+  test('after Tab into another line, the keyboard opens on that line (r5-8)', async t => {
+    const p = await panel(t, ctx, { lines: ['1', '2'], mode: 'off' });
+    await clickLine(p, 0);
+    for (let k = 0; k < 3; k++) { await p.key('Tab'); await sleep(50); }   // tex, ×, line 2
+    assert.equal(await focused(p), 1);
+    await p.click('#btn-kbd'); await sleep(400);
+    assert.equal(await focused(p), 1);
+  });
+  test('hiding the keyboard with its button puts the focus back in the line', { todo: 'r9-8: the focus stays on the button' }, async t => {
+    const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });
+    await clickLine(p, 0); await p.click('#btn-kbd'); await sleep(400); await p.click('#btn-kbd'); await sleep(300);
+    assert.equal(await focused(p), 0);
+  });
+  test('Import → Append after clicking into the box adds the pasted lines once', { todo: 'r9-9: Append duplicates the pad' }, async t => {
+    const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });
+    await p.click('#btn-menu'); await p.click('#btn-import'); await sleep(100);
+    await p.click('#imp'); await p.key('End', { ctrl: true }); await p.key('Enter'); await p.type('2');   // the box still holds the pad
+    await p.click('#imp-append'); await sleep(200);
+    assert.deepEqual(await values(p), ['1', '2']);
   });
   test('the keyboard\'s undo/redo icons are dimmed when there\'s nothing to undo or redo', async t => {
     const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });

@@ -27,6 +27,18 @@ describe('the menu in a line', () => {
     await p.click('h1'); await sleep(250);
     assert.equal(await menuOpen(p), false);
   });
+  test('the line\'s ☰ shows on hover and turns brighter under the pointer (r3-9)', async t => {
+    const p = await panel(t, ctx, { lines: ['1'], mode: 'off' });
+    const color = () => p.run(() => getComputedStyle(document.querySelector('.row math-field').shadowRoot.querySelector('[part=menu-toggle]')).color);
+    const [x, y] = await p.point('js:document.querySelector(".row math-field").shadowRoot.querySelector("[part=menu-toggle]")');
+    await p.mouse('mouseMoved', 5, 5); await sleep(300);
+    const off = await color();
+    await p.mouse('mouseMoved', x, y); await sleep(400);
+    const on = await color();
+    assert.equal(off, 'rgba(0, 0, 0, 0)');
+    assert.notEqual(on, off);
+    assert.doesNotMatch(on, /rgba\(.*, 0\)$/, 'visible under the pointer');
+  });
   test('a right-click opens it; Esc closes it and doesn\'t count toward Esc Esc', async t => {
     const p = await panel(t, ctx, { lines: ['1', '2'], mode: 'off' });
     await rightClick(p, 1);

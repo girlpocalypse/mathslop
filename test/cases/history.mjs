@@ -75,7 +75,7 @@ export const HISTORY = [
   { name: '× then the toast\'s Undo, after more than 200 steps', start: ['a', 'b'], steps: [
     ['click', 0], ['repeat', 101, [['enter'], ['backspace']]],
     ['expect', { lines: ['a', 'b'] }],
-    ['del', 1], ['expect', { lines: ['a'], toast: 'Line 2 deleted' }],
+    ['del', 1], ['expect', { lines: ['a'], toast: 'Line 2 deleted', focus: 0 }],   // × leaves the focus in a line (r7-7)
     ['toastUndo'], ['expect', { lines: ['a', 'b'] }],
   ] },
   { name: '201 steps: the oldest is dropped', start: ['1'], steps: [

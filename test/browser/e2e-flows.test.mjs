@@ -80,7 +80,7 @@ describe('flows', () => {
     assert.deepEqual(await savedState(p), want);
   });
   test('Colors paints letters in lines and in answers, the same letter the same color', async t => {
-    const p = await panel(t, ctx, { lines: ['x+y', '2x+3x'], mode: 'full' });
+    const p = await panel(t, ctx, { lines: ['x+y+e+i', '2x+3x'], mode: 'full' });
     await settled(p);
     await p.click('#btn-colors'); await sleep(200);
     const c = await p.run(() => {
@@ -90,6 +90,7 @@ describe('flows', () => {
     });
     const x0 = c.l0.find(([ch]) => ch === 'x')[1], y0 = c.l0.find(([ch]) => ch === 'y')[1];
     assert.ok(x0 && y0 && x0 !== y0, JSON.stringify(c.l0));
+    for (const ch of ['e', 'i']) assert.equal(c.l0.find(([k]) => k === ch)?.[1] ?? '', '', ch + ' stays uncolored');
     assert.equal(c.l1.find(([ch]) => ch === 'x')[1], x0, 'same letter, same color, in another line');
     assert.equal(c.a1.find(([ch]) => ch === 'x')[1], x0, 'and in the answer');
     await p.click('#btn-colors'); await sleep(200);
