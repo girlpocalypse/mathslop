@@ -29,6 +29,8 @@ export async function launch({ ext, profile, args = [] } = {}){
     // Nothing may reach the network; a request that tries shows up in the network log, then fails here.
     '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost',
     ...(ext ? [`--load-extension=${ext}`, `--disable-extensions-except=${ext}`] : []),
+    // CHROMIUM_FLAGS: extra flags for this machine, e.g. --no-sandbox on CI runners without user namespaces
+    ...(process.env.CHROMIUM_FLAGS || '').split(/\s+/).filter(Boolean),
     ...args, 'about:blank'
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '';

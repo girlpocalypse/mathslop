@@ -260,6 +260,9 @@ npm run test:zip      builds dist/mathslop-<version>-tests.zip from a temp copy 
 - **Timing.** Code that a test stubs time for must call `Date.now()` when it runs, not capture it at load.
   Trusted keys sent less than ~60 ms after Enter or Backspace can land in the wrong line (a known issue), so
   the drivers leave realistic gaps.
+- **CI**: `.github/workflows/test.yml` runs `npm run coverage` and `npm run test:zip` on pushes to main and on
+  pull requests, with Chromium from `@puppeteer/browsers` (downloaded on the runner, not a dependency).
+  `CHROMIUM_FLAGS` passes extra flags (`--no-sandbox` there).
 - **Never** let a test write or delete `dist/mathslop-<version>.zip`: test builds use `package.sh --suffix tests`.
   Test work doesn't bump the version or add a CHANGELOG entry.
 
