@@ -52,6 +52,7 @@ background.js                         makes the toolbar icon open the side panel
 docs/screenshot.png                   used only by README.md; the extension never loads it
 store/ PRIVACY.md scripts/            Chrome Web Store listing, assets and packaging; not shipped (see "Publishing")
 CHANGELOG.md                          what changed in each version; not shipped
+test/ package.json                    the test suite (see "Tests"); not shipped, no dependencies
 ```
 
 **The rule:** anything that uses `eval`, `new Function`, or a library that does, goes in the sandbox.
@@ -134,7 +135,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   otherwise it has probably been rounded to the engine's 21 digits and gets `≈`. A whole float is shown as
   3, not CE's 3.0. With fixed **Decimals**, rationals and short floats are rounded exactly in BigInt, half
   away from zero (1/8 and 0.5·0.25 ≈ 0.13); values that would round to 0 (with Decimals ≥ 1), or are
-  ≥ 10¹⁵, get scientific notation (with `=` when nothing was rounded off: 10⁻⁵ = 1.00·10⁻⁵ at 2 places), real and imaginary parts beyond a double (e^{1000}) or below it
+  ≥ 10¹⁵ and not whole (10¹⁶/3 ≈ 3.33·10¹⁵; a whole number like 10¹⁵ has no decimal to show), get scientific
+  notation (with `=` when nothing was rounded off: 10⁻⁵ = 1.00·10⁻⁵ at 2 places), real and imaginary parts beyond a double (e^{1000}) or below it
   (e^{-1000}) too; a decimal result (100·1.07¹⁰) is shown rounded instead of in full. A complex value is
   rounded part by part with the same rules (CE's `Real`/`Imaginary`, so ⅛i ≈ 0.13i at 2 places). Exact
   numbers longer than 200 characters (10000!) show only the decimal, and an exact form with a rounded float
@@ -229,6 +231,38 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
   copyFmt, copyAns }`. Missing fields fall back to defaults, so older saved data still loads.
   Falls back to localStorage if panel.html is opened outside the extension.
 
+## Tests
+
+No dependencies: Node ≥ 22.8 (`node:test`, built-in coverage) and Chromium. Branded Chrome no longer accepts
+`--load-extension`; Chromium and Chrome for Testing do (`CHROMIUM=/path` picks the binary).
+
+```
+npm run test:engine   sandbox.js and background.js in Node (vm), gated at 100% lines, branches, functions
+npm run test:browser  the panel in headless Chromium: panel-*.test.mjs (through the test hook) and e2e-*.test.mjs
+npm test              both
+npm run coverage      the above, plus browser coverage of panel.js per future module (test/tools/coverage.mjs)
+npm run test:zip      builds dist/mathslop-<version>-tests.zip from a temp copy and checks it against the release
+```
+
+- **Test hooks.** `sandbox.js` and `panel.js` each end with one statement that exports their internals when
+  `globalThis.__mathslopTest` exists. Nothing in the extension defines it, so it does nothing in use; the tests
+  define it (in the vm context, or with CDP before panel.js runs). Product code never reads it.
+- **Adapters.** Tests reach code only through `S.<module>.<name>` (`test/engine/subjects.mjs`,
+  `test/browser/subjects.js`), named by the module each name will live in after the planned split into
+  components. **`test/modules.mjs`** maps every top-level name in both files to that module and to how the tests
+  reach it; a test fails on a name missing there. Add a new helper to the map (and to the hook if tests call it).
+- **Cases as data**: `test/cases/` (undo history, engine bridge, pure-helper tables), so they can run in Node
+  after the split. Engine regressions are rows of `test/engine/lines.test.mjs` and friends, tagged with their
+  id in `test/regressions/qa-1.3.0.md` (every failing check from the 1.3.0 QA rounds).
+- **Coverage targets.** Engine: 100% (Node's gate fails if sandbox.js wasn't measured at all). Panel, per
+  module: every line and function in settings, latex, keycaps, colors, history and bridge; every function in
+  the rest. Anything else uncovered goes in `test/coverage-allow.json` with a reason.
+- **Timing.** Code that a test stubs time for must call `Date.now()` when it runs, not capture it at load.
+  Trusted keys sent less than ~60 ms after Enter or Backspace can land in the wrong line (a known issue), so
+  the drivers leave realistic gaps.
+- **Never** let a test write or delete `dist/mathslop-<version>.zip`: test builds use `package.sh --suffix tests`.
+  Test work doesn't bump the version or add a CHANGELOG entry.
+
 ## Versioning
 
 `version` in manifest.json follows semver: **major.minor.patch**.
@@ -243,7 +277,8 @@ To add a new engine feature (e.g. plotting): add a new message `type` in sandbox
 
 ## Publishing (Chrome Web Store)
 
-- `scripts/package.sh` builds `dist/mathslop-<version>.zip` (gitignored) from an allowlist of runtime files.
+- `scripts/package.sh` builds `dist/mathslop-<version>.zip` (gitignored) from an allowlist of runtime files
+  (`--suffix tests` writes `dist/mathslop-<version>-tests.zip` instead, same contents).
   It fails if a file referenced by manifest.json, the HTML or CSS is missing, or if a shipped file other than a
   license is referenced by none of them. A new top-level runtime file must be added to `TOP_FILES` *and* be
   referenced from manifest.json, an HTML page or a CSS file (references from JS aren't checked); files under

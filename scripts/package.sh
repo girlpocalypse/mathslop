@@ -6,8 +6,19 @@
 # The build fails if a file referenced by manifest.json / panel.html / sandbox.html /
 # mathlive-static.css is missing, or if the allowlist would ship a file nothing uses.
 #
-# Usage: scripts/package.sh            (runnable from any directory)
+# Usage: scripts/package.sh                 dist/mathslop-<version>.zip  (runnable from any directory)
+#        scripts/package.sh --suffix tests  dist/mathslop-<version>-tests.zip, for test builds
+#                                           (or ZIP_SUFFIX=tests); the contents are the same either way
 set -euo pipefail
+
+SUFFIX="${ZIP_SUFFIX:-}"
+while (( $# )); do
+  case "$1" in
+    --suffix) [[ $# -ge 2 ]] || { echo "package.sh: error: --suffix needs a name" >&2; exit 1; }; SUFFIX="$2"; shift 2 ;;
+    *) echo "package.sh: error: unknown argument: $1" >&2; exit 1 ;;
+  esac
+done
+[[ -z "$SUFFIX" || "$SUFFIX" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "package.sh: error: suffix '$SUFFIX' may only use letters, digits, . _ -" >&2; exit 1; }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -118,7 +129,7 @@ printf '%s\n' "${FILES[@]}" | python3 -I -c "$CHECK_PY" "$ROOT"
 
 # ---- stage and zip ----
 DIST="$ROOT/dist"
-OUT="$DIST/mathslop-$VERSION.zip"
+OUT="$DIST/mathslop-$VERSION${SUFFIX:+-$SUFFIX}.zip"
 mkdir -p "$DIST"
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/mathslop-pkg.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT

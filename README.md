@@ -4,4 +4,6 @@ Use it or don't.
 
 ![mathslop](docs/screenshot.png)
 
+Tests: `npm test` (Node ≥ 22.8 and Chromium, no dependencies; see "Tests" in `CLAUDE.md`).
+
 Dual licensed as MIT and WTFPL - see `LICENSE`.

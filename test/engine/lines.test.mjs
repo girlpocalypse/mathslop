@@ -99,6 +99,7 @@ describe('empty boxes and rewriting', () => rows(S, [
   ['\\log_{\\left(100\\right)}', arith, { invalid: 'missing' }],
   ['\\sin(\\infty)', {}, null],
   ['1+', {}, { invalid: 'unexpected-operator' }],
+  ['% a comment', { qa: 'r9-10', todo: 'an imported LaTeX comment line shows "= Nothing"' }, null],
   ['\\frac{d}{\\differentialD x}x^3', {}, A('3x^2', null)],
   ['\\frac{d}{dx}x^3', {}, A('3x^2', null)],
 ]));
