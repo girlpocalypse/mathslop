@@ -20,6 +20,7 @@ export class Browser {
   static async start(opts = {}){
     const chrome = await launch({ ext: opts.ext ?? ROOT, profile: opts.profile, args: opts.args });
     const b = new Browser(chrome);
+    b.ext = opts.ext ?? ROOT;
     await b.connect();
     return b;
   }
@@ -62,14 +63,23 @@ export class Browser {
   }
   on(f){ this.handlers.add(f); return () => this.handlers.delete(f); }
   async targets(){ return (await this.send('Target.getTargets')).targetInfos; }
-  // The extension's ID, from its service worker's URL.
+  // The loaded extension's ID: the service worker whose extension has our manifest's name. Chrome for Testing
+  // also runs component extensions with service workers of their own, so the first one isn't necessarily ours.
   async extensionId(){
+    if (this.extId) return this.extId;
+    const name = JSON.parse(fs.readFileSync(path.join(this.ext, 'manifest.json'), 'utf8')).name;
     for (let i = 0; i < 200; i++) {
-      const sw = (await this.targets()).find(t => t.type === 'service_worker' && t.url.startsWith('chrome-extension://'));
-      if (sw) return new URL(sw.url).host;
+      for (const t of (await this.targets()).filter(t => t.type === 'service_worker' && t.url.startsWith('chrome-extension://'))) {
+        const { sessionId } = await this.send('Target.attachToTarget', { targetId: t.targetId, flatten: true }).catch(() => ({}));
+        if (!sessionId) continue;
+        await this.send('Runtime.runIfWaitingForDebugger', {}, sessionId).catch(() => {});
+        const r = await this.send('Runtime.evaluate', { expression: 'chrome.runtime.getManifest().name', returnByValue: true }, sessionId).catch(() => null);
+        await this.send('Target.detachFromTarget', { sessionId }).catch(() => {});
+        if (r?.result?.value === name) return this.extId = new URL(t.url).host;
+      }
       await sleep(50);
     }
-    throw new Error('extension service worker not found');
+    throw new Error(`the service worker of extension "${name}" was not found`);
   }
   async serviceWorker(){
     const id = await this.extensionId();
