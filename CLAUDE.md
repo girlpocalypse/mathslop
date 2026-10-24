@@ -25,6 +25,10 @@ Rough priority order.
       really exact) and the panel (random keys, clicks, pastes and imports: no console errors, undo/redo round
       trips, settings survive a restart). Check the `chrome.storage.local` quota too: a huge import's failed
       save is swallowed silently in `store.save`.
+5. **Tests on the latest LTS Node in CI.** The tests workflow (PR #12) runs them on Node 22, the `engines`
+      minimum in package.json. Node is used only by the tests (the extension runs in Chrome, packaging is bash),
+      so no one is stuck on an old version: `node-version: 'lts/*'` would follow the newest LTS the way
+      `chrome@stable` follows Chrome, and `engines` could move up with it.
 
 ## Load it
 
